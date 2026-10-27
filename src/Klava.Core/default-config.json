@@ -1,0 +1,97 @@
+// Klava config. Comments and trailing commas are allowed.
+// Reload it from the tray menu after you edit it.
+{
+  "enabled": true,
+
+  // Drop phantom presses (key chatter): a press sooner than thresholdMs after the release of
+  // the same key. Bounces are usually 1-15 ms apart; real fast re-presses are 45+ ms apart.
+  "debounce": {
+    "enabled": true,
+    "thresholdMs": 30,
+    // Keys that chatter slower, with their own threshold, for example: { "M": 50, "LShift": 40 }.
+    // To find them, check "Fast re-press passed" lines in the log and the tray menu stats.
+    // Stay below about 60 ms: fast typists repeat a letter 60-100 ms apart.
+    "chatteringKeys": {}
+  },
+
+  // One Shift tap switches the layout. Two taps retype the last word in the new layout.
+  // With no last word, two taps convert the selected text through the clipboard.
+  "switcher": {
+    "enabled": true,
+    "maxTapMs": 500,
+    "doubleTapMs": 400,
+    // Longest selected text to convert. Longer text is often a whole line that an editor copied
+    // on an empty selection. 0 turns the selected text conversion off.
+    "maxSelectionChars": 20,
+    "layouts": ["en-US", "ru-RU"],
+    // Message | AltShift | CtrlShift | WinSpace
+    "switchMethod": "Message"
+  },
+
+  // Debug: log each press of these keys with the keys and pauses around it, for example
+  // ["M", "LShift", "RShift"]. The log then has fragments of typed text: keep it empty normally.
+  "debug": {
+    "traceKeys": []
+  },
+
+  // Triggers use AutoHotkey syntax: # Win, ^ Ctrl, ! Alt, + Shift, < left, > right.
+  // <^>! is AltGr (Left Ctrl + Right Alt). Actions: "text" or "send" ("^{End}", "{U+2715}").
+  "hotkeys": {
+    "enabled": true,
+    "rules": [
+      // Fast Home/End navigation
+      { "keys": ["#^Right"], "send": "{End}" },
+      { "keys": ["#^Left"], "send": "{Home}" },
+      { "keys": ["#^Down"], "send": "^{End}" },
+      { "keys": ["#^Up"], "send": "^{Home}" },
+
+      // Math
+      { "keys": [">!x", "<^>!x"], "text": "✕" },
+      { "keys": [">!+,", "<^>!+,"], "text": "≤" },
+      { "keys": [">!+.", "<^>!+."], "text": "≥" },
+      { "keys": [">!i", "<^>!i"], "text": "∞" },
+      { "keys": [">!c"], "text": "✓" },
+      { "keys": [">!+-", "<^>!+-"], "text": "−" },
+
+      // Greek
+      { "keys": [">!a", "<^>!a"], "text": "α" },
+      { "keys": [">!b", "<^>!b"], "text": "β" },
+      { "keys": [">!m", "<^>!m"], "text": "μ" },
+      { "keys": [">!d", "<^>!d"], "text": "δ" },
+      { "keys": [">!+d", "<^>!+d"], "text": "Δ" },
+      { "keys": [">!e", "<^>!e"], "text": "ε" },
+      { "keys": [">!l", "<^>!l"], "text": "λ" },
+      { "keys": [">!p", "<^>!p"], "text": "π" },
+      { "keys": [">!s", "<^>!s"], "text": "σ" },
+      { "keys": [">!+s", "<^>!+s"], "text": "Σ" },
+      { "keys": [">!o", "<^>!o", ">!+t", "<^>!+t"], "text": "Θ" },
+      { "keys": [">!+o", "<^>!+o"], "text": "Ω" },
+      { "keys": [">!+0", "<^>!+0"], "text": "ø" },
+
+      // Typography
+      { "keys": [">!-", "<^>!-"], "text": "—" },
+      { "keys": [">!Space", "<^>!Space"], "text": " " },
+      { "keys": [">!,", "<^>!,"], "text": "«" },
+      { "keys": [">!.", "<^>!."], "text": "»" },
+      // Combining acute accent (ударе́ние) and diaeresis (öüäï)
+      { "keys": [">!\\", "<^>!\\"], "text": "́" },
+      { "keys": [">!`", "<^>!`"], "text": "̈" },
+
+      // Arrows
+      { "keys": [">!v", "<^>!v"], "text": "↓" },
+      { "keys": [">!0", "<^>!0"], "text": "→" },
+      { "keys": [">!6", "<^>!6"], "text": "↑" },
+      { "keys": [">!9", "<^>!9"], "text": "←" },
+
+      // Superscripts and subscripts
+      { "keys": [">!2", "<^>!2"], "text": "²" },
+      { "keys": [">!3", "<^>!3"], "text": "³" },
+      { "keys": [">!4", "<^>!4"], "text": "⁴" },
+      { "keys": [">!n"], "text": "ⁿ" },
+      { "keys": [">!+2", "<^>!+2"], "text": "₂" },
+      { "keys": [">!+3", "<^>!+3"], "text": "₃" },
+      { "keys": [">!+4", "<^>!+4"], "text": "₄" },
+      { "keys": [">!+n"], "text": "ₙ" },
+    ]
+  }
+}

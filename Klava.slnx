@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Klava.App/Klava.App.csproj" />
+    <Project Path="src/Klava.Core/Klava.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Klava.App.Tests/Klava.App.Tests.csproj" />
+    <Project Path="tests/Klava.Core.Tests/Klava.Core.Tests.csproj" />
+  </Folder>
+</Solution>

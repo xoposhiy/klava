@@ -1,0 +1,22 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the zip and publish a GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: powershell -File scripts/publish.ps1 -Zip
+      - run: gh release create "${{ github.ref_name }}" artifacts/*.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

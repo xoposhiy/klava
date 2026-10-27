@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Klava</AssemblyName>
+    <RootNamespace>Klava.App</RootNamespace>
+    <Product>Klava</Product>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Klava.Core\Klava.Core.csproj" />
+    <InternalsVisibleTo Include="Klava.App.Tests" />
+  </ItemGroup>
+
+</Project>
