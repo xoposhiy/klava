@@ -74,8 +74,13 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
      menu bar or the Start menu.
   3. Release the held modifiers for Windows, then send the action.
   4. Mark those modifiers as released. While the user holds a released modifier, block its
-     autorepeat (it would press the key again for Windows) and its physical release (Windows
-     has it up already). A new press of the key clears the mark.
+     autorepeat (it would press the key again for Windows). Pass its physical release, although
+     Windows has the key up already: other apps' keyboard hooks can skip injected input, so they
+     see only the physical release. A new press or the release of the key clears the mark.
+- Never replace a physical modifier event with an injected one. ChatGPT's hotkey helper skips
+  injected input. When Klava blocked the physical Right Alt release, the helper saw Right Alt
+  down forever, and each later Left Alt press opened AppShots (hotkey "Alt + Alt", both Alt
+  keys at the same time).
 - Klava never presses modifiers again after an action. In v0.1 it did, and on AltGr layouts
   the fake Left Ctrl stayed down: Windows creates the fake Ctrl release only from a real
   Right Alt release, and Klava blocked that release.

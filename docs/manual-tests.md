@@ -35,6 +35,7 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 8 | Right Alt+X, Right Alt+Shift+comma | `✕`, then `≤`. The menu bar does not open on Alt release. |
 | 8a | In the RU layout (Right Alt is AltGr there): Right Alt+-, release, type `привет` | `—привет`; no Ctrl or Alt stays down; no `WARN` in the log. |
 | 8b | Hold Right Alt, press A, then B, release | `αβ` |
+| 8c | With ChatGPT running and its AppShots hotkey set to Alt + Alt: in EN and in RU, do Right Alt+0, release, then tap Left Alt 3 times | `→`; AppShots does not open. |
 | 9 | Win+Ctrl+Right in a text line | The caret goes to the end of the line; the virtual desktop stays. |
 | 10 | Release Win after check 9 | The Start menu does not open. |
 | 11 | On a keyboard that chatters, type normally for 10 minutes | The tray menu shows blocked bounces; no doubled letters. |

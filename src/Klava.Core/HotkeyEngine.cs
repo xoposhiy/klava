@@ -22,12 +22,14 @@ public sealed class HotkeyEngine(IReadOnlyList<HotkeyRule> rules, IPlatform plat
     {
         if (Vk.IsModifier(e.Vk))
         {
-            // Windows has the modifier up: an autorepeat would press it again, a release is not needed.
+            // Windows has the modifier up: an autorepeat would press it again, so block it. Pass the
+            // release: hooks that skip injected input never saw Klava's release, and without this
+            // one they keep the key down (ChatGPT then sees both Alt keys on every Left Alt press).
             if (e.IsUp)
             {
-                var block = _released.Remove(e.Vk);
+                _released.Remove(e.Vk);
                 ForgetReleased(keys); // the fake AltGr Ctrl goes with Right Alt
-                return block;
+                return false;
             }
             if (repeat) return _released.Contains(e.Vk);
             _released.Remove(e.Vk);

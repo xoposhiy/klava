@@ -49,4 +49,7 @@ you change it, and update the spec in the same change. Add user-visible changes 
   holds it. Code that asks the OS key state must account for that (see `Engine.Prune`).
 - Caramba Switcher, Punto Switcher and AutoHotkey conflict with Klava; they must not run
   at the same time.
+- Other apps' keyboard hooks can skip injected input (ChatGPT's hotkey helper does). Never
+  block a physical key event and send an injected one instead: those hooks miss the change
+  and keep the key down.
 - Write code, comments, docs and commits in clear, simple English.

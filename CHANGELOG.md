@@ -20,5 +20,8 @@ Fixed during development:
   the first release, not from the release of the blocked bounce.
 - AltGr layouts (ru-RU on Windows 10+): Left Ctrl stayed down after a Right Alt hotkey.
 - A missed Right Alt release (elevated window, lock screen) turned every later `x` into `✕`.
+- After a Right Alt hotkey, each Left Alt press opened ChatGPT AppShots (hotkey Alt + Alt):
+  Klava blocked the physical release of the modifiers it had released, and ChatGPT skips
+  Klava's injected release, so it saw Right Alt down until the next Right Alt press.
 - Synthetic End, Home and arrows were sent without the extended-key flag (apps saw numpad keys).
 - Cyrillic text from the layout switcher was cut to single bytes.

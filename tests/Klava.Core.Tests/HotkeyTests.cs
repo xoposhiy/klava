@@ -66,12 +66,12 @@ public class HotkeyTests
             [new KeyStroke(Vk.MenuMask, false), new KeyStroke(Vk.MenuMask, true), new KeyStroke(Vk.RAlt, true), new TextStroke("✕")],
             kb.Platform.Sent);
 
-        // Windows already has RAlt up: block its autorepeat and its physical release.
+        // Windows already has RAlt up: block its autorepeat, pass its physical release.
         kb.Platform.Sent.Clear();
         kb.Wait(500);
         Assert.True(kb.Down(Vk.RAlt));
         Assert.True(kb.Up('X'));
-        Assert.True(kb.Up(Vk.RAlt));
+        Assert.False(kb.Up(Vk.RAlt));
         Assert.Empty(kb.Platform.Sent);
         Assert.False(kb.Engine.IsKeyDown(Vk.RAlt));
     }
@@ -92,10 +92,30 @@ public class HotkeyTests
 
         kb.Platform.Sent.Clear();
         kb.Up(0xBD);
-        Assert.True(kb.Up(Vk.RAlt)); // Windows sends no fake Ctrl release for a blocked RAlt release
+        Assert.False(kb.Up(Vk.RAlt)); // Windows sends no fake Ctrl release when it has Left Ctrl up
         Assert.Empty(kb.Platform.Sent);
         Assert.False(kb.Engine.IsKeyDown(Vk.LCtrl));
         Assert.False(kb.Engine.IsKeyDown(Vk.RAlt));
+    }
+
+    [Fact]
+    public void Physical_release_of_a_released_modifier_reaches_hooks_that_skip_injected_input()
+    {
+        // The bug from the log: ChatGPT's hotkey helper ignores injected input. It saw the physical
+        // Right Alt press but not Klava's injected release, and Klava blocked the physical release.
+        // ChatGPT then saw both Alt keys down on every later Left Alt press and opened AppShots.
+        var kb = new Keyboard();
+        kb.AltGrDown();
+        kb.Wait(44);
+        Assert.True(kb.Down('0')); // AltGr+0 sends "→"
+        kb.Wait(80);
+        Assert.True(kb.Up('0'));
+        kb.Wait(63);
+        Assert.False(kb.Up(Vk.LCtrl, KeyState.AltGrCtrlScanCode));
+        Assert.False(kb.Up(Vk.RAlt));
+        kb.Wait(20_000);
+        Assert.False(kb.Down(Vk.LAlt));
+        Assert.False(kb.Up(Vk.LAlt));
     }
 
     [Fact]

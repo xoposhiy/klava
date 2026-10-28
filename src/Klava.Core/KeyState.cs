@@ -21,7 +21,8 @@ public sealed class KeyState
         {
             _down.Remove(e.Vk);
             if (e.Vk == Vk.LCtrl) _ctrlIsAltGr = false;
-            // A blocked Right Alt release gets no fake Left Ctrl release, so drop the fake Ctrl here.
+            // After a hotkey, Windows has Left Ctrl up and sends no fake Left Ctrl release with the
+            // Right Alt release, so drop the fake Ctrl here.
             if (e.Vk == Vk.RAlt && _ctrlIsAltGr)
             {
                 _down.Remove(Vk.LCtrl);
