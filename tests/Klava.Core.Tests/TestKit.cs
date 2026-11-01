@@ -11,6 +11,7 @@ public sealed class FakePlatform : IPlatform
     public List<OutputStep> Sent { get; } = [];
     public int Switches { get; private set; }
     public nint Layout { get; private set; } = 1;
+    public bool CapsLockOn { get; set; }
     public Func<int, bool> IsKeyDownFunc { get; set; } = _ => true;
     public List<(nint From, nint To, int MaxChars)> SelectionRequests { get; } = [];
 
@@ -61,7 +62,7 @@ public sealed class Keyboard
     public Keyboard(string? configJson = null, bool debounce = true)
     {
         var settings = KlavaConfig.Load(configJson ?? KlavaConfig.DefaultJson);
-        Engine = new Engine(settings, Platform, capsLockOn: false) { DebounceEnabled = debounce };
+        Engine = new Engine(settings, Platform) { DebounceEnabled = debounce };
         Engine.BounceBlocked += b => Bounces.Add(b);
     }
 

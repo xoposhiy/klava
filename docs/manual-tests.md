@@ -22,6 +22,9 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 4 | Shift+click in text | Text is selected; the layout does not change. |
 | 5 | In EN, type `ghbdtn`, tap Shift twice | The text becomes `привет`; the layout is RU. |
 | 6 | Type `ghbdtn ` (with a space), tap Shift twice | `привет ` with the space kept. |
+| 6a | In EN with Caps Lock off, type `ghbdtn`, tap Shift twice; repeat after using the dictation hotkey | Both results are lowercase `привет`; later typing keeps its normal case. Run in both EN and RU. |
+| 6b | Pause Klava, turn Caps Lock on, resume; in EN type `ghbdtn`, tap Shift twice | The text becomes `ПРИВЕТ`. Turn Caps Lock off afterward. |
+| 6c | In EN with Caps Lock on, type `ghb`; turn Caps Lock off, type `dtn`, tap Shift twice | The text becomes `ПРИвет`. |
 | 7 | Type a word, press Enter, tap Shift twice | Nothing is retyped; the layout switches once. |
 | 7a | In EN, type `ghbdtn`, select it with Shift+Home, tap Shift twice | The text becomes `привет`; the layout is RU. |
 | 7b | Select `ghbdtn` with a mouse double-click, tap Shift twice | Same as check 7a. |
@@ -42,6 +45,15 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 11a | Hold Right Alt, press X, then Win+L; unlock; type `x` | A plain `x`, not `✕`. |
 | 12 | Tray: uncheck Enabled | Icon turns gray; Shift taps and hotkeys do nothing. |
 | 13 | Edit config with an error, Reload config | A warning balloon; the old config keeps working. |
+| 14 | Tray: open Chatter history | One window shows saved counts by key, with no imported log entries. |
+| 14a | Select M, then All keys; switch periods and chart types; hover over bars | Counts match the selected key and period. Both chart types show blocked and passed counts, with exact counts on hover. |
+| 14b | Keep the history window open while typing in EN and RU, including Right Alt hotkeys and Shift taps | Typing, hotkeys, and layout switching work normally. New bounce counts appear within one second. |
+| 14c | Close the history window, then open it twice from the tray | Klava keeps running; only one history window opens. |
+| 14d | Note history counts, Exit from the tray, then start Klava again; reload config | Saved counts remain; old log entries are not counted again. |
+| 14f | Select Today and Last hour; tap a key, then hold it; try EN and RU | Total presses increase once per tap or hold, plus any detected bounces. Hold repeats do not increase totals. The hourly chart shows minute bars. |
+| 14g | Compare a key row and All keys | Each rate equals the displayed event count divided by Total presses. No `+`, unknown totals, or old-data controls appear. Charts use the same records as the table. |
+| 14h | Leave Last hour open without typing for over a minute; restart Klava | The rolling window advances; saved recent totals and rates remain after restart. |
+| 14e | Resize the history window down to its minimum size; check at 100%, 150%, and 200% display scaling, and move it between monitors with different scaling | The title, filters, notes, table, legend, status, and chart labels remain readable without overlap or clipped text. Check both charts and Last hour. |
 
 ## Chatter check with the diagnostic logger
 

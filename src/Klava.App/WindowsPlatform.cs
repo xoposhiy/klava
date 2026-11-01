@@ -112,7 +112,7 @@ internal sealed class WindowsPlatform : IPlatform
 
     public bool IsKeyDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
-    public static bool IsCapsLockOn() => (GetKeyState(VK_CAPITAL) & 1) != 0;
+    public bool CapsLockOn => (GetKeyState(VK_CAPITAL) & 1) != 0;
 
     private nint NextLayout(nint current)
     {

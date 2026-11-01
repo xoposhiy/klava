@@ -68,7 +68,7 @@ public class InputReplayTests
         {
             var settings = KlavaConfig.Load(Config);
             _platform = new WindowsPlatform(settings.Config.Switcher);
-            _engine = new Engine(settings, _platform, capsLockOn: false);
+            _engine = new Engine(settings, _platform);
         }
 
         /// <summary>Feeds the engine like the hook does; a passed event is sent as if it were physical.</summary>

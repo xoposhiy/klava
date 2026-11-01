@@ -14,6 +14,8 @@ internal sealed class TrayContext : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly InputHook _hook;
     private readonly SelectionConverter _selection = new();
+    private readonly ChatterHistoryStore _history = new(Path.Combine(Log.Folder, "chatter-history.json"));
+    private ChatterHistoryForm? _historyForm;
     private readonly Icon _activeIcon = MakeIcon(active: true);
     private readonly Icon _pausedIcon = MakeIcon(active: false);
     private readonly object _statsLock = new();
@@ -45,6 +47,7 @@ internal sealed class TrayContext : ApplicationContext
             new ToolStripSeparator(),
             _stats,
             _fastStats,
+            new ToolStripMenuItem("Chatter history...", null, (_, _) => ShowHistory()),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Open config", null, (_, _) => Open(ConfigStore.FilePath)),
             new ToolStripMenuItem("Reload config", null, (_, _) => Reload()),
@@ -66,8 +69,9 @@ internal sealed class TrayContext : ApplicationContext
 
     private Engine CreateEngine(Settings settings)
     {
-        var engine = new Engine(settings, new WindowsPlatform(settings.Config.Switcher, _selection), WindowsPlatform.IsCapsLockOn());
+        var engine = new Engine(settings, new WindowsPlatform(settings.Config.Switcher, _selection));
         engine.BounceBlocked += OnBounce;
+        engine.PressObserved += _history.RecordPress;
         engine.FastRepressPassed += OnFastRepress;
         engine.Switcher.Switched += () => Log.Info("Layout switched");
         engine.Switcher.Converted += count => Log.Info($"Retyped the last word ({count} keys)");
@@ -111,6 +115,7 @@ internal sealed class TrayContext : ApplicationContext
     // Runs on the hook thread.
     private void OnBounce(Bounce bounce)
     {
+        _history.Record(bounce.Vk, bounce.GapMs, blocked: true);
         lock (_statsLock) _bounces[bounce.Vk] = _bounces.GetValueOrDefault(bounce.Vk) + 1;
         Log.Info($"Bounce blocked: {KeyNames.Name(bounce.Vk)}, {bounce.GapMs} ms after release");
     }
@@ -118,6 +123,7 @@ internal sealed class TrayContext : ApplicationContext
     // Runs on the hook thread.
     private void OnFastRepress(FastRepress r)
     {
+        _history.Record(r.Vk, r.GapMs, blocked: false);
         lock (_statsLock)
         {
             var (count, min) = _fastRepresses.GetValueOrDefault(r.Vk, (0, long.MaxValue));
@@ -165,6 +171,14 @@ internal sealed class TrayContext : ApplicationContext
         RefreshMenu();
     }
 
+    private void ShowHistory()
+    {
+        if (_historyForm is null || _historyForm.IsDisposed) _historyForm = new ChatterHistoryForm(_history);
+        if (_historyForm.WindowState == FormWindowState.Minimized) _historyForm.WindowState = FormWindowState.Normal;
+        _historyForm.Show();
+        _historyForm.Activate();
+    }
+
     private void Warn(string message)
     {
         Log.Warn(message);
@@ -186,6 +200,8 @@ internal sealed class TrayContext : ApplicationContext
     private void Exit()
     {
         _hook.Dispose();
+        _historyForm?.Dispose();
+        _history.Dispose();
         _selection.Dispose();
         _tray.Visible = false;
         Log.Info("Stopped");

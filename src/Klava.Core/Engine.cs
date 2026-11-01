@@ -16,14 +16,13 @@ public sealed class Engine
     private readonly Debouncer _debouncer;
     private readonly HotkeyEngine _hotkeys;
     private readonly KeyState _keys = new();
+    private readonly HashSet<int> _physicalDown = [];
     private volatile bool _enabled, _debounceEnabled, _hotkeysEnabled, _switcherEnabled;
-    private bool _capsLock;
 
-    public Engine(Settings settings, IPlatform platform, bool capsLockOn)
+    public Engine(Settings settings, IPlatform platform)
     {
         var config = settings.Config;
         _platform = platform;
-        _capsLock = capsLockOn;
         _debouncer = new Debouncer(config.Debounce.ThresholdMs, settings.DebounceKeyThresholds);
         _hotkeys = new HotkeyEngine(settings.HotkeyRules, platform);
         Switcher = new LayoutSwitcher(platform, config.Switcher.MaxTapMs, config.Switcher.DoubleTapMs,
@@ -44,6 +43,9 @@ public sealed class Engine
     /// <summary>Raised on the hook thread for a passed re-press of a printable key or a modifier within <see cref="FastRepressMs"/>.</summary>
     public event Action<FastRepress>? FastRepressPassed;
 
+    /// <summary>Every non-injected press, including bounces, excluding hold repeats. Also collected while paused.</summary>
+    public event Action<int>? PressObserved;
+
     public LayoutSwitcher Switcher { get; }
 
     /// <summary>Set when <c>debug.traceKeys</c> is not empty.</summary>
@@ -58,7 +60,10 @@ public sealed class Engine
     /// <summary>Returns true to block the event.</summary>
     public bool OnKey(in KeyEvent e)
     {
-        if (e.Injected || !_enabled) return false;
+        if (e.Injected) return false;
+        if (e.IsUp) _physicalDown.Remove(e.KeyId);
+        else if (_physicalDown.Add(e.KeyId)) PressObserved?.Invoke(e.Vk);
+        if (!_enabled) return false;
         var block = Process(e);
         Tracer?.Observe(e, block);
         return block;
@@ -77,7 +82,6 @@ public sealed class Engine
 
         if (!e.IsUp && _keys.Count > 0) Prune(e.TimeMs);
         var repeat = _keys.Update(e);
-        if (!e.IsUp && !repeat && e.Vk == Vk.CapsLock) _capsLock = !_capsLock;
 
         if (_hotkeysEnabled && _hotkeys.Handle(e, repeat, _keys))
         {
@@ -85,7 +89,7 @@ public sealed class Engine
             return true;
         }
 
-        if (_switcherEnabled) Switcher.Observe(e, repeat, _keys, _capsLock);
+        if (_switcherEnabled) Switcher.Observe(e, repeat, _keys, _platform.CapsLockOn);
         return false;
     }
 

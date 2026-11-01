@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 Write-Host "Published $exe"
 
 if ($Restart) {
-    Start-Process $exe
+    Start-Process $exe -WindowStyle Hidden
     Write-Host "Started $exe"
 }
 

@@ -59,6 +59,50 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
 - Time source: a high-resolution clock read when the hook callback starts. The hook runs on a
   dedicated thread with no UI work, so the callback starts within about 1 ms of the event.
 
+### Chatter history
+
+- Save daily counts and recent minute counts for each virtual key in `%LOCALAPPDATA%\Klava\chatter-history.json`.
+  Keep the history across restarts and config reloads, with no automatic expiry.
+- Count each blocked bounce once, not its release or autorepeats. Count passed fast re-presses
+  separately; these events can be intentional and are not confirmed chatter.
+- Group release-to-press gaps into 10 ms buckets from 0 to 199 ms. Passed fast re-presses
+  cover only 0 to 99 ms. The label `0-9` means a 0 to 9 ms release-to-press gap.
+  Do not save typed text, key order, or individual event times.
+- Count all non-injected key presses, including blocked bounces, hotkey triggers, and presses
+  while paused. Exclude releases and repeated key-down events during a hold. Count each
+  virtual key plus extended flag separately, then combine by virtual key for display.
+- Save recent counts in local minute buckets. Merge buckets older than two hours into daily
+  counts. `Last hour` includes the current minute and the previous 60 minutes, so the boundary
+  has up to one minute of extra coverage. Refresh the rolling window even with no new input.
+- Store only counts with known press totals in format version 3. Do not import old history or
+  log entries. Each displayed count and rate uses the same recorded presses.
+- The hook only queues events. A separate worker updates counts and saves at most once every
+  five seconds. Write a temporary file, flush it, then replace the history file. A normal Exit
+  drains pending events and saves them. A forced stop can lose the last few seconds.
+- If the history file cannot be read or has an unsupported format, keep the file unchanged
+  and collect new counts only in memory. If saving fails, keep counts in memory and retry.
+  Show the error state in the history window and log the error.
+- Tray menu: `Chatter history...` opens one window; opening it again brings it to the front.
+  Closing the window keeps Klava running and collecting history.
+- Scale window sizes and chart spacing with the monitor DPI. Size text rows to fit their
+  content, wrap long notes, and keep chart labels apart when the window is resized.
+- Show a table of keys, blocked bounces, and passed fast re-presses for the selected period:
+  the last hour, today, the last 7, 30, or 90 calendar days including today, or all time.
+  Include an `All keys` row and show total presses and blocked and fast-passed percentages.
+  Each percentage uses the displayed event count divided by the displayed press total for
+  the same key and period. Show `N/A` when the press total is zero. Show a positive rate below
+  0.01% as `<0.01%`. Do not round a positive event count to 0%.
+  Explain that blocked repeats were stopped and passed fast repeats were allowed and may be
+  intentional. Do not show incomplete totals, old event counts, or compatibility controls.
+- Selecting a row shows its counts in a chart. `Daily history` shows counts over time,
+  including zero-event days. For more than 60 days, combine days into at most 60 bars.
+  `Re-press gaps` shows counts for each 10 ms gap bucket. Use separate colors for blocked
+  bounces and passed fast re-presses, with exact counts and rates on hover.
+  For the last hour, show minute bars.
+  Refresh once per second.
+- History records the filter's decisions at the time of each event. Changing a threshold
+  does not change old counts. The session counts in the tray keep their current meaning.
+
 ## Hotkeys
 
 - A rule has one or more triggers in AutoHotkey syntax and one action.
@@ -142,6 +186,11 @@ A third tap starts a new sequence (it is a single tap).
 
 The buffer holds the physical keys typed since the last reset: virtual key, scan code,
 Shift state, Caps Lock state.
+
+Read the Caps Lock toggle state from Windows when recording each key. Do not infer it by
+counting physical Caps Lock presses: other apps can block a press or reset Caps Lock with
+injected input, and Caps Lock can change while Klava is paused. Retyping keeps the state
+recorded for each key, even if Caps Lock changes before the double tap.
 
 - Printable keys (letters, digits, OEM punctuation, numpad digits, Space) with no Ctrl, Alt,
   or Win down are added.
@@ -279,7 +328,7 @@ Known limits:
 ## Tray app
 
 - Tray icon menu: Enabled, Debounce, Hotkeys, Layout switcher (check boxes), blocked bounce
-  counts, Open config, Reload config, Open log, Start with Windows, Exit.
+  counts, Chatter history, Open config, Reload config, Open log, Start with Windows, Exit.
 - One instance per user session.
 - On start, warn if Caramba Switcher, Punto Switcher, or AutoHotkey runs: they conflict with Klava.
 - Log file: `%LOCALAPPDATA%\Klava\klava.log`. Log events (start, config errors, blocked bounces,

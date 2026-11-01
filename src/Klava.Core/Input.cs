@@ -29,6 +29,9 @@ public readonly record struct TypedKey(int Vk, int ScanCode, bool Shift, bool Ca
 /// <summary>Everything the core needs from the operating system.</summary>
 public interface IPlatform
 {
+    /// <summary>Current Caps Lock toggle state, including changes made by other apps.</summary>
+    bool CapsLockOn { get; }
+
     void Send(IReadOnlyList<OutputStep> steps);
 
     /// <summary>Switches the foreground window to the next layout and returns the layouts before and after.</summary>
