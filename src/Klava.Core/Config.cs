@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,6 +44,16 @@ public sealed class KlavaConfig
 
     private Settings Compile()
     {
+        Check(Debounce is not null, "debounce must be an object.");
+        Check(Hotkeys is not null, "hotkeys must be an object.");
+        Check(Switcher is not null, "switcher must be an object.");
+        Check(Debug is not null, "debug must be an object.");
+        Check(Debounce.ChatteringKeys is not null, "debounce.chatteringKeys must be an object.");
+        Check(Hotkeys.Rules is not null, "hotkeys.rules must be a list.");
+        Check(Switcher.Layouts is not null, "switcher.layouts must be a list.");
+        Check(Switcher.Layouts.All(layout => !string.IsNullOrWhiteSpace(layout)), "switcher.layouts must contain language tags.");
+        Check(Enum.IsDefined(Switcher.SwitchMethod), "switcher.switchMethod is not supported.");
+        Check(Debug.TraceKeys is not null, "debug.traceKeys must be a list.");
         Check(Debounce.ThresholdMs is >= 0 and <= 200, "debounce.thresholdMs must be 0..200.");
         Check(Switcher.MaxTapMs > 0, "switcher.maxTapMs must be positive.");
         Check(Switcher.DoubleTapMs > 0, "switcher.doubleTapMs must be positive.");
@@ -59,6 +70,7 @@ public sealed class KlavaConfig
         var traceKeys = new HashSet<int>();
         foreach (var name in Debug.TraceKeys)
         {
+            Check(!string.IsNullOrWhiteSpace(name), "debug.traceKeys must contain key names.");
             Check(KeyNames.TryGetVk(name, out var vk), $"debug.traceKeys: unknown key \"{name}\".");
             traceKeys.Add(vk);
         }
@@ -66,6 +78,9 @@ public sealed class KlavaConfig
         var rules = new List<HotkeyRule>();
         foreach (var rule in Hotkeys.Rules)
         {
+            Check(rule is not null, "hotkeys.rules must contain rule objects.");
+            Check(rule.Keys is not null, "hotkeys.rules.keys must be a list.");
+            Check(rule.Keys.All(key => !string.IsNullOrWhiteSpace(key)), "hotkeys.rules.keys must contain key names.");
             var label = string.Join(", ", rule.Keys);
             Check(rule.Keys.Count > 0, "hotkeys.rules: a rule has no keys.");
             Check((rule.Text is null) != (rule.Send is null), $"Hotkey [{label}]: set exactly one of \"text\" and \"send\".");
@@ -84,7 +99,7 @@ public sealed class KlavaConfig
         return new Settings(this, perKey, rules, traceKeys);
     }
 
-    private static void Check(bool condition, string message)
+    private static void Check([DoesNotReturnIf(false)] bool condition, string message)
     {
         if (!condition) throw new ConfigException(message);
     }

@@ -20,6 +20,12 @@ First public version.
 
 Fixed during development:
 
+- Keep input processing fast as chatter history grows: publish display snapshots only on
+  request, merge old minutes once per minute, and save counts without copying all gap arrays.
+- Keep tray menu sorting, text formatting, and control updates outside the hook's stats lock.
+- Treat null config sections and list items, invalid send Unicode codes, and incomplete send
+  strings as config errors. Keep working settings on reload and use defaults on startup.
+
 - Double Shift could retype a lowercase word in uppercase because Klava's Caps Lock count
   differed from Windows. Read the Windows toggle state for each typed key.
 

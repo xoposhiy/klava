@@ -79,6 +79,10 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
 - The hook only queues events. A separate worker updates counts and saves at most once every
   five seconds. Write a temporary file, flush it, then replace the history file. A normal Exit
   drains pending events and saves them. A forced stop can lose the last few seconds.
+- Apply queued events in batches. Merge old minute buckets once per minute. Build display
+  snapshots only when a reader requests them, at most once per second. Save the worker's live
+  records without copying all gap arrays. With the history window closed, typing does not
+  rebuild the full history for display.
 - If the history file cannot be read or has an unsupported format, keep the file unchanged
   and collect new counts only in memory. If saving fails, keep counts in memory and retry.
   Show the error state in the history window and log the error.
@@ -99,7 +103,8 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
   `Re-press gaps` shows counts for each 10 ms gap bucket. Use separate colors for blocked
   bounces and passed fast re-presses, with exact counts and rates on hover.
   For the last hour, show minute bars.
-  Refresh once per second.
+  Refresh once per second. Requested counts appear on the next refresh, normally within
+  about two seconds.
 - History records the filter's decisions at the time of each event. Changing a threshold
   does not change old counts. The session counts in the tray keep their current meaning.
 
@@ -323,13 +328,17 @@ Known limits:
 - `switcher.maxSelectionChars`: 0..1000, default 20 (see "Selected text").
 - JSON with comments and trailing commas allowed. See `src/Klava.Core/default-config.json`.
 - The tray menu reloads the file. An invalid file keeps the previous configuration and shows
-  the error.
+  the error. On start, an invalid file shows the error and uses the default configuration.
+  Reject null sections, null lists and list items, empty key names or language tags, unsupported
+  switch methods, and invalid Unicode code points in send actions as configuration errors.
 
 ## Tray app
 
 - Tray icon menu: Enabled, Debounce, Hotkeys, Layout switcher (check boxes), blocked bounce
   counts, Chatter history, Open config, Reload config, Open log, Start with Windows, Exit.
 - One instance per user session.
+- Copy session counters under a short lock. Sort and format the counters and update menu
+  controls after releasing the lock, so UI work does not hold up hook callbacks.
 - On start, warn if Caramba Switcher, Punto Switcher, or AutoHotkey runs: they conflict with Klava.
 - Log file: `%LOCALAPPDATA%\Klava\klava.log`. Log events (start, config errors, blocked bounces,
   layout switches, conversions), never typed text.

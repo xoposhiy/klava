@@ -45,14 +45,16 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 11a | Hold Right Alt, press X, then Win+L; unlock; type `x` | A plain `x`, not `✕`. |
 | 12 | Tray: uncheck Enabled | Icon turns gray; Shift taps and hotkeys do nothing. |
 | 13 | Edit config with an error, Reload config | A warning balloon; the old config keeps working. |
+| 13a | In a test config, try `"debounce": null`, a null hotkey rule, and `"send": "{U+110000}"`; reload each, then restart with one invalid config | Reload keeps working settings. Restart shows a warning and uses defaults. Klava stays running. Restore the valid config afterward. |
 | 14 | Tray: open Chatter history | One window shows saved counts by key, with no imported log entries. |
 | 14a | Select M, then All keys; switch periods and chart types; hover over bars | Counts match the selected key and period. Both chart types show blocked and passed counts, with exact counts on hover. |
-| 14b | Keep the history window open while typing in EN and RU, including Right Alt hotkeys and Shift taps | Typing, hotkeys, and layout switching work normally. New bounce counts appear within one second. |
+| 14b | Keep the history window open while typing in EN and RU, including Right Alt hotkeys and Shift taps | Typing, hotkeys, and layout switching work normally. New bounce counts appear within about two seconds. |
 | 14c | Close the history window, then open it twice from the tray | Klava keeps running; only one history window opens. |
 | 14d | Note history counts, Exit from the tray, then start Klava again; reload config | Saved counts remain; old log entries are not counted again. |
 | 14f | Select Today and Last hour; tap a key, then hold it; try EN and RU | Total presses increase once per tap or hold, plus any detected bounces. Hold repeats do not increase totals. The hourly chart shows minute bars. |
 | 14g | Compare a key row and All keys | Each rate equals the displayed event count divided by Total presses. No `+`, unknown totals, or old-data controls appear. Charts use the same records as the table. |
 | 14h | Leave Last hour open without typing for over a minute; restart Klava | The rolling window advances; saved recent totals and rates remain after restart. |
+| 14i | With several months of saved history, close the history window and type normally; open the tray menu and history window, then Exit and restart | Typing stays responsive. The menu shows session counts. The history window catches up within about two seconds and counts remain after restart. |
 | 14e | Resize the history window down to its minimum size; check at 100%, 150%, and 200% display scaling, and move it between monitors with different scaling | The title, filters, notes, table, legend, status, and chart labels remain readable without overlap or clipped text. Check both charts and Last hour. |
 
 ## Chatter check with the diagnostic logger

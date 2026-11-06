@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Klava.Core;
@@ -99,13 +100,16 @@ public static class SendParser
             string keyName;
             if (c == '{')
             {
-                var close = text.IndexOf('}', i + 2);
+                var close = text.IndexOf('}', i + 1);
                 if (close < 0) throw new FormatException($"Send \"{text}\": missing '}}'.");
                 keyName = text[(i + 1)..close];
                 i = close + 1;
                 if (keyName.StartsWith("U+", StringComparison.OrdinalIgnoreCase))
                 {
-                    pendingText.Append(char.ConvertFromUtf32(Convert.ToInt32(keyName[2..], 16)));
+                    if (!int.TryParse(keyName.AsSpan(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var codePoint)
+                        || !Rune.IsValid(codePoint))
+                        throw new FormatException($"Send \"{text}\": invalid Unicode code point \"{keyName}\".");
+                    pendingText.Append(char.ConvertFromUtf32(codePoint));
                     mods.Clear();
                     continue;
                 }

@@ -42,9 +42,10 @@ public sealed class ChatterHistory
     public static DateTime RoundMinute(DateTime time) => new(time.Ticks - time.Ticks % TimeSpan.TicksPerMinute, time.Kind);
 
     // Only the recent rolling window needs minute counts. Keep older counts in daily buckets.
-    public void Compact(DateTime before)
+    public bool Compact(DateTime before)
     {
-        foreach (var day in _days.Values.Where(d => d.Minute < before).ToArray())
+        var oldMinutes = _days.Values.Where(d => d.Minute < before).ToArray();
+        foreach (var day in oldMinutes)
         {
             var daily = Get(day.Date, day.Vk, null);
             for (var i = 0; i < GapBucketCount; i++)
@@ -58,6 +59,7 @@ public sealed class ChatterHistory
             };
             _days.Remove((day.Date, day.Vk, day.Minute));
         }
+        return oldMinutes.Length > 0;
     }
 
     private ChatterDay Get(DateOnly date, int vk, DateTime? minute)
@@ -70,6 +72,9 @@ public sealed class ChatterHistory
     }
 
     public ChatterDay[] Snapshot() => _days.Values.OrderBy(d => d.Date).ThenBy(d => d.Vk).Select(Copy).ToArray();
+
+    /// <summary>Live records for saving on the owner thread. Do not change or retain the records.</summary>
+    public IEnumerable<ChatterDay> Records => _days.Values;
 
     private static ChatterDay Copy(ChatterDay day) => day with
     {

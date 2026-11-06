@@ -141,19 +141,24 @@ internal sealed class TrayContext : ApplicationContext
         _switcher.Checked = engine.SwitcherEnabled;
         _autostart.Checked = ConfigStore.Autostart;
 
+        KeyValuePair<int, int>[] bounces;
+        KeyValuePair<int, (int Count, long MinGapMs)>[] fastRepresses;
         lock (_statsLock)
         {
-            var total = _bounces.Values.Sum();
-            var top = _bounces.OrderByDescending(p => p.Value).Take(5).Select(p => $"{KeyNames.Name(p.Key)} {p.Value}");
-            _stats.Text = total == 0 ? "Bounces blocked: 0" : $"Bounces blocked: {total} ({string.Join(", ", top)})";
-
-            // The fastest passed re-presses hint at keys that need a chatteringKeys entry.
-            var fastest = _fastRepresses.OrderBy(p => p.Value.MinGapMs).Take(5)
-                .Select(p => $"{KeyNames.Name(p.Key)} {p.Value.MinGapMs} ms");
-            _fastStats.Text = _fastRepresses.Count == 0
-                ? "Fastest passed re-presses: none"
-                : $"Fastest passed re-presses: {string.Join(", ", fastest)}";
+            bounces = _bounces.ToArray();
+            fastRepresses = _fastRepresses.ToArray();
         }
+
+        var total = bounces.Sum(p => p.Value);
+        var top = bounces.OrderByDescending(p => p.Value).Take(5).Select(p => $"{KeyNames.Name(p.Key)} {p.Value}");
+        _stats.Text = total == 0 ? "Bounces blocked: 0" : $"Bounces blocked: {total} ({string.Join(", ", top)})";
+
+        // The fastest passed re-presses hint at keys that need a chatteringKeys entry.
+        var fastest = fastRepresses.OrderBy(p => p.Value.MinGapMs).Take(5)
+            .Select(p => $"{KeyNames.Name(p.Key)} {p.Value.MinGapMs} ms");
+        _fastStats.Text = fastRepresses.Length == 0
+            ? "Fastest passed re-presses: none"
+            : $"Fastest passed re-presses: {string.Join(", ", fastest)}";
         _tray.Icon = engine.Enabled ? _activeIcon : _pausedIcon;
         _tray.Text = engine.Enabled ? "Klava" : "Klava (paused)";
     }

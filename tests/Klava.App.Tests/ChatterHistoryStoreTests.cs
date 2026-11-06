@@ -55,6 +55,7 @@ public sealed class ChatterHistoryStoreTests : IDisposable
         Directory.CreateDirectory(HistoryPath);
         store.Record('M', 68, true);
         Assert.True(SpinWait.SpinUntil(() => store.Status.StartsWith("Cannot save", StringComparison.Ordinal), TimeSpan.FromSeconds(8)));
+        Assert.True(SpinWait.SpinUntil(() => store.Snapshot.Length == 1, TimeSpan.FromSeconds(5)));
         Assert.Equal(1, Assert.Single(store.Snapshot).BlockedGaps.Sum());
         Directory.Delete(HistoryPath);
         Assert.True(SpinWait.SpinUntil(() => File.Exists(HistoryPath), TimeSpan.FromSeconds(8)));

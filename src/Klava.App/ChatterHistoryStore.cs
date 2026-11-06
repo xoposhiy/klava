@@ -6,13 +6,14 @@ namespace Klava.App;
 
 internal sealed class ChatterHistoryStore : IDisposable
 {
-    private sealed record SavedHistory(int Version, ChatterDay[] Days);
+    private sealed record SavedHistory(int Version, IEnumerable<ChatterDay> Days);
     private readonly record struct Entry(DateTime Time, int Vk, long GapMs, bool Blocked);
     private readonly BlockingCollection<Entry> _queue = new();
     private readonly Thread _worker;
     private readonly string _path;
     private ChatterDay[] _snapshot = [];
     private string _status = "Loading history...";
+    private int _snapshotRequested;
 
     public ChatterHistoryStore(string path)
     {
@@ -21,7 +22,16 @@ internal sealed class ChatterHistoryStore : IDisposable
         _worker.Start();
     }
 
-    public ChatterDay[] Snapshot => Volatile.Read(ref _snapshot);
+    /// <summary>Last published counts. Reading requests a refresh from the worker.</summary>
+    public ChatterDay[] Snapshot
+    {
+        get
+        {
+            var snapshot = Volatile.Read(ref _snapshot);
+            Volatile.Write(ref _snapshotRequested, 1);
+            return snapshot;
+        }
+    }
     public string Status => Volatile.Read(ref _status);
 
     // Called by the hook: only enqueue, never wait for disk or the UI.
@@ -59,19 +69,34 @@ internal sealed class ChatterHistoryStore : IDisposable
             Log.Error("Cannot load chatter history", ex);
         }
 
+        dirty |= history.Compact(DateTime.Now.AddHours(-2));
         Volatile.Write(ref _snapshot, history.Snapshot());
+        var snapshotDirty = false;
+        var nextSnapshot = Environment.TickCount64 + 1000;
+        var nextCompact = Environment.TickCount64 + 60_000;
         var nextSave = Environment.TickCount64;
         while (!_queue.IsCompleted)
         {
             if (_queue.TryTake(out var entry, 1000))
             {
                 Apply(history, entry);
-                while (_queue.TryTake(out entry)) Apply(history, entry);
-                history.Compact(DateTime.Now.AddHours(-2));
-                Volatile.Write(ref _snapshot, history.Snapshot());
+                for (var count = 1; count < 4096 && _queue.TryTake(out entry); count++) Apply(history, entry);
                 dirty = true;
+                snapshotDirty = true;
             }
-            if (!dirty || !canSave || Environment.TickCount64 < nextSave) continue;
+            var now = Environment.TickCount64;
+            if (now >= nextCompact)
+            {
+                if (history.Compact(DateTime.Now.AddHours(-2))) dirty = snapshotDirty = true;
+                nextCompact = now + 60_000;
+            }
+            if (snapshotDirty && now >= nextSnapshot && Interlocked.Exchange(ref _snapshotRequested, 0) != 0)
+            {
+                Volatile.Write(ref _snapshot, history.Snapshot());
+                snapshotDirty = false;
+                nextSnapshot = now + 1000;
+            }
+            if (!dirty || !canSave || now < nextSave) continue;
             dirty = !Save(history);
             nextSave = Environment.TickCount64 + 5000;
         }
@@ -92,7 +117,7 @@ internal sealed class ChatterHistoryStore : IDisposable
             var temporaryPath = _path + ".tmp";
             using (var file = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                JsonSerializer.Serialize(file, new SavedHistory(3, history.Snapshot()));
+                JsonSerializer.Serialize(file, new SavedHistory(3, history.Records));
                 file.Flush(flushToDisk: true);
             }
             File.Move(temporaryPath, _path, overwrite: true);
