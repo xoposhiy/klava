@@ -3,19 +3,25 @@ namespace Klava.App;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static int Main()
     {
-        using var mutex = new Mutex(true, @"Local\Klava.SingleInstance", out var firstInstance);
-        if (!firstInstance) return;
-
-        Application.ThreadException += (_, e) => Log.Error("UI thread", e.Exception);
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        try
         {
-            Log.Error("Unhandled", (Exception)e.ExceptionObject);
+            CrashHandling.Install(Log.Fatal, Log.Error);
+            using var mutex = new Mutex(true, @"Local\Klava.SingleInstance", out var firstInstance);
+            if (!firstInstance) return 0;
+            var session = new RunSession(Log.Folder, Log.Errors);
+            session.Start();
+            ApplicationConfiguration.Initialize();
+            Application.Run(new TrayContext());
             Log.Flush();
-        };
-
-        ApplicationConfiguration.Initialize();
-        Application.Run(new TrayContext());
+            session.Complete();
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal("Application stopped", ex);
+            return 1;
+        }
     }
 }

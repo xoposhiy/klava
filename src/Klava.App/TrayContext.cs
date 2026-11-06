@@ -55,6 +55,7 @@ internal sealed class TrayContext : ApplicationContext
             new ToolStripMenuItem("Open config", null, (_, _) => Open(ConfigStore.FilePath)),
             new ToolStripMenuItem("Reload config", null, (_, _) => Reload()),
             new ToolStripMenuItem("Open log", null, (_, _) => Open(Log.FilePath)),
+            new ToolStripMenuItem("Open error log", null, (_, _) => OpenErrorLog()),
             _autostart,
             new ToolStripSeparator(),
             new ToolStripMenuItem("Exit", null, (_, _) => Exit()),
@@ -206,6 +207,12 @@ internal sealed class TrayContext : ApplicationContext
         {
             Log.Error($"Cannot open {path}", ex);
         }
+    }
+
+    private void OpenErrorLog()
+    {
+        if (File.Exists(Log.Errors.FilePath)) Open(Log.Errors.FilePath);
+        else Open(Log.Folder);
     }
 
     private void Exit()

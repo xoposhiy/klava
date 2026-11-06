@@ -41,7 +41,10 @@ Fixed during development:
 - Keep tray menu sorting, text formatting, and control updates outside the hook's stats lock.
 - Treat null config sections and list items, invalid send Unicode codes, and incomplete send
   strings as config errors. Keep working settings on reload and use defaults on startup.
-
+- Save errors in a separate durable error log, with fallback files when the main path is
+  unavailable. Save fatal exceptions without waiting for the background log worker. Report
+  unclean sessions on the next start and add an Open error log tray item.
+- Wait for log writes to finish when flushing. Keep the log worker alive after write failures.
 - Double Shift could retype a lowercase word in uppercase because Klava's Caps Lock count
   differed from Windows. Read the Windows toggle state for each typed key.
 

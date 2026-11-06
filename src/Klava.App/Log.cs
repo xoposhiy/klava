@@ -1,26 +1,19 @@
-using System.Collections.Concurrent;
-
 namespace Klava.App;
 
 /// <summary>
-/// Append-only file log. Writes happen on a background thread, so the hook thread never waits
-/// for the disk. Never log typed text.
+/// Hook callbacks only enqueue messages. Fatal errors use an independent disk write.
 /// </summary>
 internal static class Log
 {
-    private const long MaxBytes = 1_000_000;
-    private static readonly BlockingCollection<string> Queue = new();
-
-    public static string Folder { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Klava");
+    public static string Folder { get; } = Environment.GetEnvironmentVariable("KLAVA_LOG_DIR") is { Length: > 0 } folder
+        ? folder
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Klava");
 
     public static string FilePath { get; } = Path.Combine(Folder, "klava.log");
 
-    static Log()
-    {
-        Directory.CreateDirectory(Folder);
-        new Thread(Write) { IsBackground = true, Name = "Klava log" }.Start();
-    }
+    public static ErrorJournal Errors { get; } = new(Folder, Path.Combine(Path.GetTempPath(), "Klava"));
+    private static readonly BackgroundLog Writer = new(Write,
+        ex => Errors.Record($"Log worker failed: {ex}"));
 
     public static void Info(string message) => Add("INFO", message);
 
@@ -28,29 +21,35 @@ internal static class Log
 
     public static void Error(string message, Exception ex) => Add("ERROR", $"{message}: {ex}");
 
-    /// <summary>Waits a short time for queued lines to reach the file.</summary>
-    public static void Flush()
+    public static void Fatal(string message, object? error)
     {
-        for (var i = 0; i < 20 && Queue.Count > 0; i++) Thread.Sleep(25);
+        var line = Format("FATAL", $"{message}: {error}");
+        // The log worker can be the thread that failed; never wait for it here.
+        Errors.Record(line);
+        Writer.Add(line, error: false);
     }
 
-    private static void Add(string level, string message) =>
-        Queue.Add($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {level} {message}");
+    public static bool Flush() => Writer.Flush(TimeSpan.FromSeconds(2));
 
-    private static void Write()
+    private static void Add(string level, string message) =>
+        Writer.Add(Format(level, message), level == "ERROR");
+
+    private static string Format(string level, string message) =>
+        $"{DateTimeOffset.Now:O} {level} pid={Environment.ProcessId} thread={Environment.CurrentManagedThreadId} {message}";
+
+    private static void Write(string line, bool error)
     {
-        foreach (var line in Queue.GetConsumingEnumerable())
+        if (error) Errors.Record(line);
+        try
         {
-            try
-            {
-                if (File.Exists(FilePath) && new FileInfo(FilePath).Length > MaxBytes)
-                    File.Move(FilePath, FilePath + ".old", overwrite: true);
-                File.AppendAllText(FilePath, line + Environment.NewLine);
-            }
-            catch (IOException)
-            {
-                // The log is best effort.
-            }
+            Directory.CreateDirectory(Folder);
+            if (File.Exists(FilePath) && new FileInfo(FilePath).Length > 1_000_000)
+                File.Move(FilePath, FilePath + ".old", overwrite: true);
+            File.AppendAllText(FilePath, line + Environment.NewLine);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Preserve errors even when the event log cannot be written.
         }
     }
 }

@@ -82,6 +82,22 @@ Run the app checks in Notepad, Chrome, and VS Code with EN and an AltGr layout (
 | T16 | Open a long translation or AI article; scroll with the wheel, keyboard, and scroll bar | All content is reachable. Word senses, translations, and examples have clear visual separation. |
 | T17 | Press Ctrl+Enter; retry with missing OpenAI setup; click Settings | Ctrl+Enter requests AI details. Quick translation stays readable and copyable while AI loads or setup is missing. Settings opens the config and closes the popup. |
 
+## Error logging checks
+
+- In the tray, select **Open error log**. It opens `errors.log`, or the log folder if no
+  errors have been recorded. Confirm that normal Shift taps and double taps still work.
+- Exit through the tray and start again. No new unclean-exit report should appear.
+- In a separate test copy with isolated log paths, force a background exception. The error
+  report must include the exception and stack trace before the process exits. Force a stop
+  without an exception, then start again: the report must say the cause is unknown.
+
+Build `tests/Klava.CrashProbe`. Run its executable with an empty log folder and a mode:
+`Klava.CrashProbe <log-folder> crash|clean|wait|ui`. It uses the app's error handlers and
+logger without installing keyboard hooks. `crash` must exit with an error and save the full
+exception in `errors.log`. `ui` must save the UI exception and exit successfully. `clean`
+must clear the session marker. Stop a `wait` process only after `ready.txt` appears, then
+run `clean` with the same folder; it must report the previous unclean exit.
+
 ## Chatter check with the diagnostic logger
 
 `tools/kbdlog.py` logs Raw Input (what the keyboard sent) and hook events. Raw Input still

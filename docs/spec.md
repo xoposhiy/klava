@@ -415,13 +415,24 @@ Known limits:
 ## Tray app
 
 - Tray icon menu: Enabled, Debounce, Hotkeys, Layout switcher (check boxes), blocked bounce
-  counts, Chatter history, Open config, Reload config, Open log, Start with Windows, Exit.
+  counts, Chatter history, Open config, Reload config, Open log, Open error log, Start with Windows, Exit.
 - One instance per user session.
 - Copy session counters under a short lock. Sort and format the counters and update menu
   controls after releasing the lock, so UI work does not hold up hook callbacks.
 - On start, warn if Caramba Switcher, Punto Switcher, or AutoHotkey runs: they conflict with Klava.
 - Log file: `%LOCALAPPDATA%\Klava\klava.log`. Log events (start, config errors, blocked bounces,
   layout switches, conversions), never typed text.
+- Error log: `%LOCALAPPDATA%\Klava\errors.log`. Include the time with UTC offset, process ID,
+  version, and full exception. Write fatal errors directly and flush them to disk without
+  waiting for the event log worker. Hook callbacks still only queue handled errors.
+  If the error log is locked, write a separate `error-*.log` in the same folder. If that
+  folder is unavailable, try `%TEMP%\Klava`. Keep error reports across event log rotation.
+  `KLAVA_LOG_DIR` can select an isolated log and session folder for diagnostic test processes.
+- Track the running session in `running-session.txt`. Remove it after a clean exit. At the
+  next start, report a remaining marker as an unclean exit with an unknown cause; a forced
+  stop or system shutdown is not proof of a crash. Forced stops cannot write an exception.
+- Log flush waits for prior writes to finish, with a two-second timeout. A failed file write
+  must not terminate the log worker or keyboard input.
 - Exception, opt-in for debugging: `debug.traceKeys` lists keys to trace. Each press of a traced
   key gives one `Trace` line: the previous key and the pause since its press, the press length
   and autorepeats, the next key and the pause after the release (or "during the hold"), the
