@@ -456,6 +456,8 @@ Known limits:
 - `tests/Klava.App.Tests`: integration tests against the real Windows layout and input API.
 - `tools/kbdlog.py`: diagnostic logger (Raw Input + hook). Use it to check chatter and
   switcher behavior on the real keyboard.
+  `--unsupported-only` records only codes outside 1–254, including Raw Input device details,
+  scan codes, and hook flags. Normal keys and layout changes are excluded in this mode.
 
 ## Known limits and risks
 

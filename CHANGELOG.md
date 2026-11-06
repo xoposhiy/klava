@@ -28,6 +28,8 @@ First public version.
 - AutoHotkey-style hotkeys for Unicode symbols and key sequences.
 - Tray menu with feature toggles, bounce stats, and the fastest passed re-presses.
 - Log of blocked bounces, fast re-presses, hotkey sends, and an opt-in key trace.
+- Diagnostic logger mode `--unsupported-only` to find the source of unmapped key events
+  without recording normal keys.
 - Saved daily chatter history by key, with charts for event counts and re-press gaps.
   Open the window from `Chatter history...` in the tray.
 - Press totals and blocked/fast-passed percentages in chatter history, with Today and Last hour periods.

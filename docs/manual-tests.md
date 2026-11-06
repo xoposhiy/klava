@@ -104,3 +104,11 @@ run `clean` with the same folder; it must report the previous unclean exit.
 `tools/kbdlog.py` logs Raw Input (what the keyboard sent) and hook events. Raw Input still
 shows bounces when Klava runs, because Klava filters at the hook level. To see the effect of
 the filter, compare the bounce lines in `klava.log` with the `CHATTER` lines of the logger.
+
+To find the source of an unsupported key code, run
+`python tools/kbdlog.py --unsupported-only --seconds 900`. This mode records only codes
+outside 1–254, with scan codes, flags, hook injection details, and Raw Input device paths.
+It does not record normal keys or layout changes. Try special keys on each keyboard and
+device gestures separately, and note the action time. Match RAW and HOOK entries by time
+and scan code. A hook event alone does not identify a device or the sending process.
+The capture stops after 15 minutes. Tests: `python -m unittest discover -s tools -p test_kbdlog.py`.

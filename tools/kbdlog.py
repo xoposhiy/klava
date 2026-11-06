@@ -14,9 +14,12 @@ Usage:
   python kbdlog.py              run until Ctrl+C in this console
   python kbdlog.py --all        also print physical HOOK events
   python kbdlog.py --seconds 60 stop automatically after 60 seconds
+  python kbdlog.py --unsupported-only --seconds 900
+                               record only codes outside 1..254, with device details
 
 Mark a moment in the log (for example, right after a glitch): tap Right Ctrl 3 times quickly.
-Do not type passwords while the logger runs: the log file contains every key.
+The default mode records every key: do not type passwords while it runs.
+The --unsupported-only mode excludes normal keys and layout changes.
 """
 
 import argparse
@@ -340,9 +343,38 @@ class Analyzer:
                         f'very_short={self.short[name]}', RED)
 
 
+def unsupported_key(vk):
+    return not 1 <= vk <= 254
+
+
+class UnsupportedAnalyzer(Analyzer):
+    def handle(self, ev):
+        source, t, vk, scan, flags, detail = ev
+        if not unsupported_key(vk):
+            return
+        if source == 'RAW':
+            device = self.device_label(detail) if detail else 'no device'
+            state = 'up' if flags & RI_KEY_BREAK else 'down'
+            info = f'device={device}'
+        else:
+            state = 'up' if flags & LLKHF_UP else 'down'
+            injected = bool(flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED))
+            info = f'injected={injected} extra=0x{detail:X}'
+        self.p.line(t, f'{source} unsupported vk=0x{vk:X} scan=0x{scan:X} '
+                       f'flags=0x{flags:X} {state} {info}')
+
+    def poll_layout(self):
+        pass
+
+    def summary(self):
+        self.p.note('Unsupported-key capture finished. Normal keys were not recorded.')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--all', action='store_true', help='also print physical events seen by the hook')
+    ap.add_argument('--unsupported-only', action='store_true',
+                    help='record only codes outside 1..254; exclude normal keys and layout changes')
     ap.add_argument('--seconds', type=float, default=0, help='stop after this many seconds')
     args = ap.parse_args()
 
@@ -351,7 +383,7 @@ def main():
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, datetime.datetime.now().strftime('kbd-%Y%m%d-%H%M%S.log'))
     printer = Printer(log_path)
-    analyzer = Analyzer(printer, args.all)
+    analyzer = (UnsupportedAnalyzer if args.unsupported_only else Analyzer)(printer, args.all)
     events = queue.SimpleQueue()
     main_tid = kernel32.GetCurrentThreadId()
     running = threading.Event()
@@ -362,7 +394,8 @@ def main():
     def hook_proc(n_code, w_param, l_param):
         if n_code == 0:
             k = KBDLLHOOKSTRUCT.from_address(l_param)
-            events.put(('HOOK', time.perf_counter(), k.vkCode, k.scanCode, k.flags, k.dwExtraInfo))
+            if not args.unsupported_only or unsupported_key(k.vkCode):
+                events.put(('HOOK', time.perf_counter(), k.vkCode, k.scanCode, k.flags, k.dwExtraInfo))
         return user32.CallNextHookEx(None, n_code, w_param, l_param)
 
     raw_buf = ctypes.create_string_buffer(256)
@@ -376,7 +409,8 @@ def main():
                 ri = RAWINPUT.from_buffer(raw_buf)
                 if ri.header.dwType == RIM_TYPEKEYBOARD:
                     kb = ri.keyboard
-                    events.put(('RAW', t, kb.VKey, kb.MakeCode, kb.Flags, ri.header.hDevice or 0))
+                    if not args.unsupported_only or unsupported_key(kb.VKey):
+                        events.put(('RAW', t, kb.VKey, kb.MakeCode, kb.Flags, ri.header.hDevice or 0))
         return user32.DefWindowProcW(hwnd, msg, w_param, l_param)
 
     def on_ctrl(_ctrl_type):
@@ -410,7 +444,10 @@ def main():
         threading.Timer(args.seconds, on_ctrl, args=(0,)).start()
 
     printer.note(f'Logging to {log_path}', BOLD)
-    printer.note(f'Chatter threshold {CHATTER_MS} ms. Tap Right Ctrl x3 to put a MARK. Ctrl+C here to stop.\n')
+    if args.unsupported_only:
+        printer.note('Recording only unsupported key codes. Normal keys and layout changes are excluded.\n')
+    else:
+        printer.note(f'Chatter threshold {CHATTER_MS} ms. Tap Right Ctrl x3 to put a MARK. Ctrl+C here to stop.\n')
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
 

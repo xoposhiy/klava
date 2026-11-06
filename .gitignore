@@ -6,3 +6,4 @@ artifacts/
 *.user
 TestResults/
 tools/logs/
+__pycache__/
