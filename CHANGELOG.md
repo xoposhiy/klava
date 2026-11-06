@@ -45,6 +45,13 @@ Fixed during development:
   unavailable. Save fatal exceptions without waiting for the background log worker. Report
   unclean sessions on the next start and add an Open error log tray item.
 - Wait for log writes to finish when flushing. Keep the log worker alive after write failures.
+- Reject invalid history events, bound the history queue, and isolate unexpected history
+  worker failures so statistics cannot close Klava or delay keyboard input.
+
+- An unmapped key event (`0xFF`), reproduced with the built-in Lenovo Fn key, could crash
+  the chatter history worker and close Klava.
+  Pass these events through without processing or recording them.
+
 - Double Shift could retype a lowercase word in uppercase because Klava's Caps Lock count
   differed from Windows. Read the Windows toggle state for each typed key.
 

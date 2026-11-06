@@ -33,6 +33,8 @@ For each physical key event, the hook runs these stages in order. A stage can bl
 blocked events do not reach later stages or other apps.
 
 1. Skip injected events (from Klava or other apps): pass them through untouched.
+   Also pass events with virtual key codes outside 1–254 through untouched. Do not update
+   key state, collect statistics, or run the debounce filter, hotkeys, or layout switcher for them.
 2. Debounce filter.
 3. Key state update (which physical keys are down).
 4. Hotkeys.
@@ -68,7 +70,7 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
 - Group release-to-press gaps into 10 ms buckets from 0 to 199 ms. Passed fast re-presses
   cover only 0 to 99 ms. The label `0-9` means a 0 to 9 ms release-to-press gap.
   Do not save typed text, key order, or individual event times.
-- Count all non-injected key presses, including blocked bounces, hotkey triggers, and presses
+- Count all supported non-injected key presses, including blocked bounces, hotkey triggers, and presses
   while paused. Exclude releases and repeated key-down events during a hold. Count each
   virtual key plus extended flag separately, then combine by virtual key for display.
 - Save recent counts in local minute buckets. Merge buckets older than two hours into daily
@@ -433,6 +435,10 @@ Known limits:
   stop or system shutdown is not proof of a crash. Forced stops cannot write an exception.
 - Log flush waits for prior writes to finish, with a two-second timeout. A failed file write
   must not terminate the log worker or keyboard input.
+- Reject invalid history events before the worker sees them. Bound the history queue to
+  4096 events and skip excess statistics without waiting in a hook callback. If the history
+  worker fails unexpectedly, stop history collection, keep the saved file, record the error,
+  and keep keyboard input active.
 - Exception, opt-in for debugging: `debug.traceKeys` lists keys to trace. Each press of a traced
   key gives one `Trace` line: the previous key and the pause since its press, the press length
   and autorepeats, the next key and the pause after the release (or "during the hold"), the

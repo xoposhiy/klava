@@ -7,6 +7,50 @@ public class ChatterHistoryTests
     private static readonly DateOnly Today = new(2026, 10, 30);
 
     [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(255)]
+    [InlineData(256)]
+    [InlineData(int.MinValue)]
+    [InlineData(int.MaxValue)]
+    public void Passes_unsupported_key_codes_without_recording_them(int vk)
+    {
+        var kb = new Keyboard();
+        var history = Observe(kb);
+
+        Assert.False(kb.Down(vk));
+        Assert.False(kb.Wait(80).Up(vk));
+        Assert.False(kb.Wait(1).Down(vk));
+        Assert.False(kb.Wait(20).Up(vk));
+        Assert.False(kb.Engine.IsKeyDown(vk));
+        kb.Engine.Enabled = false;
+        kb.Tap(vk);
+        Assert.Empty(history.Snapshot());
+        Assert.Empty(kb.Bounces);
+
+        kb.Engine.Enabled = true;
+        kb.Tap('M', holdMs: 21, afterMs: 68);
+        kb.Tap('M', holdMs: 23);
+        var day = Assert.Single(history.Snapshot());
+        Assert.Equal('M', day.Vk);
+        Assert.Equal(2, day.TotalPresses);
+        Assert.Equal(1, day.PassedGaps[6]);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(254)]
+    public void Records_key_codes_at_both_supported_boundaries(int vk)
+    {
+        var kb = new Keyboard();
+        var history = Observe(kb);
+        kb.Tap(vk);
+        var day = Assert.Single(history.Snapshot());
+        Assert.Equal(vk, day.Vk);
+        Assert.Equal(1, day.TotalPresses);
+    }
+
+    [Theory]
     [InlineData(50, 0, 1)]
     [InlineData(70, 1, 0)]
     public void Records_the_observed_68_ms_repress(int threshold, int blocked, int passed)

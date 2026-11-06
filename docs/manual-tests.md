@@ -43,6 +43,7 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 10 | Release Win after check 9 | The Start menu does not open. |
 | 11 | On a keyboard that chatters, type normally for 10 minutes | The tray menu shows blocked bounces; no doubled letters. |
 | 11a | Hold Right Alt, press X, then Win+L; unlock; type `x` | A plain `x`, not `✕`. |
+| 11b | Keep Klava running during normal work in EN and RU, including special keyboard keys and lock/unlock; then open Chatter history | Klava stays in the tray, history keeps updating, and the log has no new unhandled exceptions. |
 | 12 | Tray: uncheck Enabled | Icon turns gray; Shift taps and hotkeys do nothing. |
 | 13 | Edit config with an error, Reload config | A warning balloon; the old config keeps working. |
 | 13a | In a test config, try `"debounce": null`, a null hotkey rule, and `"send": "{U+110000}"`; reload each, then restart with one invalid config | Reload keeps working settings. Restart shows a warning and uses defaults. Klava stays running. Restore the valid config afterward. |

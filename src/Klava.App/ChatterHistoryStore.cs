@@ -8,17 +8,20 @@ internal sealed class ChatterHistoryStore : IDisposable
 {
     private sealed record SavedHistory(int Version, IEnumerable<ChatterDay> Days);
     private readonly record struct Entry(DateTime Time, int Vk, long GapMs, bool Blocked);
-    private readonly BlockingCollection<Entry> _queue = new();
+    private readonly BlockingCollection<Entry> _queue = new(4096);
     private readonly Thread _worker;
     private readonly string _path;
     private ChatterDay[] _snapshot = [];
     private string _status = "Loading history...";
+    private int _stopped;
+    private int _invalidReported;
+    private int _overflowReported;
     private int _snapshotRequested;
 
     public ChatterHistoryStore(string path)
     {
         _path = path;
-        _worker = new Thread(Run) { IsBackground = true, Name = "Klava chatter history" };
+        _worker = new Thread(RunSafely) { IsBackground = true, Name = "Klava chatter history" };
         _worker.Start();
     }
 
@@ -35,10 +38,58 @@ internal sealed class ChatterHistoryStore : IDisposable
     public string Status => Volatile.Read(ref _status);
 
     // Called by the hook: only enqueue, never wait for disk or the UI.
-    public void Record(int vk, long gapMs, bool blocked) =>
-        _queue.Add(new Entry(DateTime.Now, vk, gapMs, blocked));
+    public void Record(int vk, long gapMs, bool blocked)
+    {
+        if (gapMs < 0 || gapMs >= (blocked ? 200 : Engine.FastRepressMs))
+        {
+            ReportInvalid();
+            return;
+        }
+        Enqueue(new Entry(DateTime.Now, vk, gapMs, blocked));
+    }
 
-    public void RecordPress(int vk) => _queue.Add(new Entry(DateTime.Now, vk, -1, false));
+    public void RecordPress(int vk) => Enqueue(new Entry(DateTime.Now, vk, -1, false));
+
+    private void Enqueue(Entry entry)
+    {
+        if (Volatile.Read(ref _stopped) != 0) return;
+        if (entry.Vk is <= 0 or >= 255)
+        {
+            ReportInvalid();
+            return;
+        }
+        try
+        {
+            if (!_queue.TryAdd(entry) && Interlocked.Exchange(ref _overflowReported, 1) == 0)
+                Log.Warn("History queue is full; some statistics are skipped to keep keyboard input responsive.");
+        }
+        catch (InvalidOperationException)
+        {
+            // Shutdown can complete the queue after the stopped check.
+        }
+    }
+
+    private void ReportInvalid()
+    {
+        if (Interlocked.Exchange(ref _invalidReported, 1) == 0)
+            Log.Error("Invalid history event skipped", new ArgumentException("Key code or gap is outside the supported range."));
+    }
+
+    private void RunSafely()
+    {
+        try
+        {
+            Run();
+        }
+        catch (Exception ex)
+        {
+            Volatile.Write(ref _stopped, 1);
+            _queue.CompleteAdding();
+            Volatile.Write(ref _status, "History is unavailable. Keyboard input is still active.");
+            Log.Error("History worker stopped; keyboard input is still active", ex);
+            Log.Flush();
+        }
+    }
 
     private void Run()
     {
@@ -135,6 +186,7 @@ internal sealed class ChatterHistoryStore : IDisposable
 
     public void Dispose()
     {
+        Volatile.Write(ref _stopped, 1);
         _queue.CompleteAdding();
         if (!_worker.Join(TimeSpan.FromSeconds(5))) Log.Warn("Chatter history did not finish saving before exit.");
     }

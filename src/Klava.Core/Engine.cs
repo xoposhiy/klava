@@ -43,7 +43,7 @@ public sealed class Engine
     /// <summary>Raised on the hook thread for a passed re-press of a printable key or a modifier within <see cref="FastRepressMs"/>.</summary>
     public event Action<FastRepress>? FastRepressPassed;
 
-    /// <summary>Every non-injected press, including bounces, excluding hold repeats. Also collected while paused.</summary>
+    /// <summary>Every supported non-injected press, including bounces, excluding hold repeats. Also collected while paused.</summary>
     public event Action<int>? PressObserved;
 
     public LayoutSwitcher Switcher { get; }
@@ -60,7 +60,7 @@ public sealed class Engine
     /// <summary>Returns true to block the event.</summary>
     public bool OnKey(in KeyEvent e)
     {
-        if (e.Injected) return false;
+        if (e.Injected || e.Vk is <= 0 or >= 255) return false;
         if (e.IsUp) _physicalDown.Remove(e.KeyId);
         else if (_physicalDown.Add(e.KeyId)) PressObserved?.Invoke(e.Vk);
         if (!_enabled) return false;
