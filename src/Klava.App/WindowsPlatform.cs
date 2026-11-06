@@ -14,16 +14,22 @@ internal sealed class WindowsPlatform : IPlatform
     private readonly SwitchMethod _method;
     private readonly int[] _languages;
     private readonly SelectionConverter? _selection;
+    private readonly Action? _translate;
 
     /// <param name="selection">Runs the selected text conversion; null turns it off.</param>
-    public WindowsPlatform(SwitcherConfig config, SelectionConverter? selection = null)
+    public WindowsPlatform(SwitcherConfig config, SelectionConverter? selection = null, Action? translate = null)
     {
         _method = config.SwitchMethod;
         _selection = selection;
+        _translate = translate;
         _languages = config.Layouts.Select(LanguageId).Where(id => id != 0).ToArray();
     }
 
-    public void Send(IReadOnlyList<OutputStep> steps) => SendSteps(steps);
+    public void Send(IReadOnlyList<OutputStep> steps)
+    {
+        SendSteps(steps);
+        if (steps.Any(step => step is TranslateSelection)) _translate?.Invoke();
+    }
 
     public static void SendSteps(IReadOnlyList<OutputStep> steps)
     {

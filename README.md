@@ -10,6 +10,9 @@ A small Windows tray app that fixes and extends keyboard input with one low-leve
   automatic switching.
 - **Hotkeys.** AutoHotkey-style rules: Right Alt + key types a Unicode symbol
   (`✕ ≤ ≥ α β π — « » → ²` and more), Win+Ctrl+arrows go to Home/End.
+- **Selection translation.** Ctrl+Left Alt+T opens a quick DeepL translation. An optional
+  AI details button gives word senses and examples or alternative phrase translations.
+  Supports English, Russian, and German.
 
 All three work in one hook and in a fixed order, so the chatter filter removes a phantom Shift
 press before the layout switcher can see it. Separate tools cannot guarantee that.
@@ -73,6 +76,53 @@ or right key, `<^>!` for AltGr. An action is `text` or `send` (`^{End}`, `{U+271
 
 Add the `<^>!` trigger next to `>!`: on layouts with AltGr (for example, Russian on Windows 10
 and later), Right Alt reaches Klava as Left Ctrl + Right Alt.
+
+### Selection translation
+
+Add this section to the config and click **Reload config**:
+
+```jsonc
+"translation": {
+  "enabled": true,
+  "hotkey": "^<!t",
+  "deeplKey": "YOUR_DEEPL_API_KEY",
+  "openaiKey": "",
+  "model": "gpt-6-luna",
+  "maxChars": 5000
+}
+```
+
+Select a word or phrase in an app, then press **Ctrl+Left Alt+T**. Klava copies the selection,
+restores the clipboard, and opens the translation near the pointer. The source text stays in
+the original app. Esc closes the window. Hold repeats do not start more requests.
+
+With both language menus set to Auto: EN → RU, RU → EN, DE → RU. Use the language menus
+to select any pair of EN, RU, and DE. For short ambiguous words, choose the source explicitly:
+for example, English `gift` and German `Gift` have different meanings.
+
+DeepL provides the initial translation. **AI details** makes a separate OpenAI request using
+`gpt-6-luna` with `reasoning.effort` set to `none` by default. For a word, it shows common
+senses, parts of speech, translation equivalents, and examples; for a phrase, it shows
+alternative translations when context allows different meanings. Set `openaiKey` to use this
+button. AI details may be incomplete or wrong and are not entries from a published dictionary.
+The button uses DeepL's detected direction unless the language selectors specify a direction.
+
+Empty keys use the `DEEPL_API_KEY` and `OPENAI_API_KEY` environment variables. API access
+uses the providers' API accounts. Requests send only the selected text, only after the hotkey
+(DeepL) or the details button (OpenAI). Klava does not log or save source text or translations;
+up to 100 results per provider are cached in memory until reload or exit. Copy result replaces
+the clipboard only when clicked. The Hotkeys toggle also controls the translation hotkey.
+
+The popup uses a simple light window with a standard Windows title bar and resize border.
+Long results scroll with the wheel, keyboard, or scroll bar. Press Ctrl+C to copy the result
+(or selected text in the focused text control), Ctrl+Enter for AI details, and Esc to close.
+The settings button opens the config. Missing API setup shows a short hint; hover over it for
+the field name and config path.
+
+Terminal windows are skipped because Ctrl+C can stop a command. Apps must support copying
+selected text with Ctrl+C. Clipboard preservation has the same format limits as selection
+layout conversion; the app's Ctrl+C copy may enter clipboard history. An editor that copies an
+unmarked whole line with no selection can cause that line to be translated.
 
 ## Is it the keyboard or the driver?
 

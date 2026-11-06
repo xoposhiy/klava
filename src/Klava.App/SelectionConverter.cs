@@ -48,7 +48,9 @@ internal sealed class SelectionConverter : IDisposable
     private int _busy;
     private Request? _request;
 
-    private sealed record Request(IPlatform Platform, nint From, nint To, int MaxChars);
+    private abstract record Request;
+    private sealed record Conversion(IPlatform Platform, nint From, nint To, int MaxChars) : Request;
+    private sealed record Capture(nint Foreground, int MaxChars, Action<SelectionCapture> Completed) : Request;
 
     private sealed record Copied(string? Text, List<string> Formats, string? EditorData);
 
@@ -67,10 +69,24 @@ internal sealed class SelectionConverter : IDisposable
             Log.Info("Selected text: skipped, a conversion runs");
             return;
         }
-        Volatile.Write(ref _request, new Request(platform, from, to, maxChars));
+        Volatile.Write(ref _request, new Conversion(platform, from, to, maxChars));
         if (PostThreadMessage(_threadId, WM_CONVERT, 0, 0)) return;
         Log.Warn($"Selected text: error, PostThreadMessage failed, error {Marshal.GetLastWin32Error()}");
         Volatile.Write(ref _busy, 0);
+    }
+
+    /// <summary>Queues a copy without activating a window. Shares the conversion worker and clipboard lock.</summary>
+    public void ReadSelection(int maxChars, Action<SelectionCapture> completed)
+    {
+        if (Interlocked.Exchange(ref _busy, 1) == 1)
+        {
+            ThreadPool.QueueUserWorkItem(_ => completed(new(null, "Another selection request is running.")));
+            return;
+        }
+        Volatile.Write(ref _request, new Capture(GetForegroundWindow(), maxChars, completed));
+        if (PostThreadMessage(_threadId, WM_CONVERT, 0, 0)) return;
+        Volatile.Write(ref _busy, 0);
+        ThreadPool.QueueUserWorkItem(_ => completed(new(null, "Cannot start selection capture.")));
     }
 
     public void Dispose()
@@ -102,14 +118,18 @@ internal sealed class SelectionConverter : IDisposable
 
     private void RunRequest()
     {
+        var request = Volatile.Read(ref _request)!;
         try
         {
-            if (_window == 0) Fail("no clipboard window");
-            else Convert(Volatile.Read(ref _request)!);
+            if (request is Capture capture)
+                capture.Completed(_window == 0 ? new(null, "Cannot open the clipboard window.") : ReadSelection(capture));
+            else if (_window == 0) Fail("no clipboard window");
+            else Convert((Conversion)request);
         }
         catch (Exception ex)
         {
             Log.Error("Selected text", ex);
+            if (request is Capture capture) capture.Completed(new(null, "Cannot read the selection."));
         }
         finally
         {
@@ -117,7 +137,38 @@ internal sealed class SelectionConverter : IDisposable
         }
     }
 
-    private void Convert(Request request)
+    private SelectionCapture ReadSelection(Capture request)
+    {
+        if (IsConsole(request.Foreground)) return new(null, "Selection capture is disabled in terminal windows.");
+        if (!WaitForModifiersUp()) return new(null, "Release the modifier keys and try again.");
+        if (request.Foreground == 0 || GetForegroundWindow() != request.Foreground)
+            return new(null, "The active window changed. Select text and try again.");
+        var saved = Save();
+        if (saved is null) return new(null, "Cannot open the clipboard.");
+        var sequence = GetClipboardSequenceNumber();
+        uint? copiedSequence = null;
+        try
+        {
+            if (GetForegroundWindow() != request.Foreground) return new(null, "The active window changed. Try again.");
+            SendChord('C');
+            if (!WaitForChange(sequence)) return new(null, "Select text and try again.");
+            copiedSequence = GetClipboardSequenceNumber();
+            if (GetForegroundWindow() != request.Foreground) return new(null, "The active window changed. Try again.");
+            var copied = ReadCopied();
+            if (copied is null) return new(null, "Cannot read the clipboard.");
+            if (SelectionText.WholeLineReason(copied.Formats, copied.EditorData) is not null)
+                return new(null, "Select text and try again.");
+            var error = TranslationText.SelectionError(copied.Text, request.MaxChars);
+            return new(error is null ? copied.Text!.Trim() : null, error);
+        }
+        finally
+        {
+            if (copiedSequence is { } own && !Write(saved, own))
+                Log.Warn("Translation: cannot restore the clipboard");
+        }
+    }
+
+    private void Convert(Conversion request)
     {
         if (IsConsole(GetForegroundWindow()))
         {
@@ -337,11 +388,12 @@ internal sealed class SelectionConverter : IDisposable
     private bool Restore(List<(uint Format, byte[] Data)> saved) => Write(saved);
 
     /// <summary>Replaces the clipboard content with the formats and the history formats.</summary>
-    private bool Write(IEnumerable<(uint Format, byte[] Data)> formats)
+    private bool Write(IEnumerable<(uint Format, byte[] Data)> formats, uint? expectedSequence = null)
     {
         if (!Open()) return false;
         try
         {
+            if (expectedSequence is { } sequence && GetClipboardSequenceNumber() != sequence) return true;
             if (!EmptyClipboard()) return false;
             var ok = true;
             foreach (var (format, data) in formats.Concat(HistoryFormats)) ok &= SetData(format, data);

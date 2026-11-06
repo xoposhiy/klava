@@ -28,9 +28,13 @@ public static partial class SelectionText
         if (string.IsNullOrEmpty(text)) return "no text";
         if (text.Length > maxChars) return $"longer than {maxChars} characters";
         if (text.AsSpan().IndexOfAny('\r', '\n') >= 0) return "has a line break";
+        return WholeLineReason(formats, editorData);
+    }
+
+    public static string? WholeLineReason(IReadOnlyCollection<string> formats, string? editorData)
+    {
         if (WholeLineFormats.FirstOrDefault(formats.Contains) is { } format) return $"whole-line copy ({format})";
-        if (editorData is not null && EmptySelectionMarker().IsMatch(editorData)) return "whole-line copy (VS Code)";
-        return null;
+        return editorData is not null && EmptySelectionMarker().IsMatch(editorData) ? "whole-line copy (VS Code)" : null;
     }
 
     /// <summary>

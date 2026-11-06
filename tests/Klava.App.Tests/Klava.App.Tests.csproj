@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Klava.App\Klava.App.csproj" />
+    <ProjectReference Include="..\Klava.UiProbe\Klava.UiProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

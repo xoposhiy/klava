@@ -322,6 +322,86 @@ Known limits:
 - `AltShift`, `CtrlShift`, `WinSpace`: send the Windows hotkey. Use it for apps that ignore
   the message.
 
+## Selection translation
+
+- `translation.enabled` defaults to true. `translation.hotkey` defaults to `^<!t`:
+  Ctrl+Left Alt+T. The left Alt requirement prevents AltGr from triggering translation.
+  Use the existing hook and hotkey modifier release sequence. Block the trigger press,
+  all hold repeats (even after modifiers are released), and the trigger release. Pass physical
+  modifier releases through. One hold starts one capture. Clear the layout switcher word buffer.
+- The global Enabled and Hotkeys toggles disable the translation hotkey. Translation rules
+  take priority over user send rules with the same trigger. Require a non-modifier trigger
+  with Ctrl, Alt, or Win. Reject an invalid trigger, null keys, empty model, null section, or
+  `maxChars` outside 1..5000 as config errors. Existing files without this section get defaults.
+- Capture selected text on the existing selection worker. Translation capture and layout
+  conversion share its busy guard and clipboard window. Never wait or do network, file, or
+  UI work in the hook callback. Skip terminal window classes. Wait for modifiers to be up,
+  save the standard clipboard formats, send marked Ctrl+C, and wait up to 400 ms for a change.
+  Do not empty the clipboard first. Check that the foreground window still matches before
+  copying and after the copy. Ignore whole-line copy markers using the layout conversion checks.
+- Allow multiline text. Reject empty or whitespace-only text and selections longer than
+  `translation.maxChars` (default 5000), counted as Unicode scalar values. Trim outer whitespace.
+  Restore saved clipboard formats before opening the result window. Restore only while the
+  clipboard sequence still matches the copy. Preserve newer clipboard data. The clipboard
+  format and history limits from Selected text also apply. If capture fails, show the reason
+  in the result window and send no translation request. Busy requests show a short error.
+- Open one resizable result window near the pointer, inside the monitor's working area.
+  Keep the result window above other windows. Use a simple light window with a standard
+  Windows title bar and resize border, native language menus, and standard text buttons.
+  Use muted source text and a larger translation. Let Windows move and resize the window.
+  Do not draw custom button text, icons, rounded frames, or non-client window areas.
+  Start at 540 × 410 logical pixels; grow for long translations or AI details within the
+  monitor height. Keep controls and text usable at 100%, 150%, and 200% display scaling.
+- Show source and target language menus with Auto, EN, RU, and DE choices. Display full
+  detected language names when Auto resolves. Provide Retry (DeepL), AI details, Copy,
+  Settings, and the system close button. Keep tooltips, accessible names, and visible keyboard
+  focus. Size buttons to their captions and keep footer actions on the same row.
+  Finish building the controls before applying DPI scaling; do not mix unscaled controls
+  with scaled fonts. Show a plain loading message. Keep a quick translation
+  readable and copyable while AI details load. Show AI word meanings with separate text
+  sizes and colors for headwords, parts of speech, translations, and examples.
+- Render plain text in native controls. Support selection, mouse-wheel and keyboard scrolling,
+  and the standard scroll bar. Esc closes the window. Ctrl+Enter requests AI details.
+  Ctrl+C copies the result unless the focused text control has selected text, in which case
+  it copies that selection. The Copy button briefly shows Copied after success. Opening
+  settings opens the config and closes the popup. Closing never exits Klava.
+- Show short setup hints in the card or below the existing translation. Keep the field name
+  and config path in a tooltip. Missing AI setup keeps the quick translation and Copy available.
+- The hotkey starts DeepL only. Use `POST /v2/translate`, JSON `text` array, optional
+  `source_lang`, and `target_lang`, with `Authorization: DeepL-Auth-Key <key>`. Keys ending
+  in `:fx` use api-free.deepl.com; other keys use api.deepl.com. Default Auto directions:
+  EN → RU, RU → EN, DE → RU. With an unknown source, first request RU; if DeepL detects RU,
+  request EN. An explicit source avoids the extra request. Support all six EN/RU/DE directions.
+  Reject other detected source languages and ask the user to choose the source. Changing a
+  language starts another DeepL request. Explicit equal source and target produce a hint.
+- AI details alone calls OpenAI Responses with a strict JSON schema and `store: false`.
+  Use `translation.model` (default `gpt-6-luna`) and explicitly send `reasoning.effort: "none"`.
+  Use the last DeepL source and target when
+  the selectors are Auto; otherwise use the explicit choices. Without a DeepL result, AI
+  detects the source and uses the same default directions. Treat selected text as data in a
+  separate user message. No tools or app context are sent.
+- One word (letters and combining marks, including internal apostrophes and hyphens; ignore
+  outer whitespace and common enclosing punctuation) requests a dictionary-style AI answer:
+  headword, common distinct senses, parts of speech, translation equivalents, and source and
+  translated examples. For German nouns include article and plural. A phrase requests the
+  main translation and up to three distinct translations when missing context changes meaning.
+  Label AI output as generated and possibly incomplete. Do not claim a complete dictionary.
+- Keys: `translation.deeplKey` and `translation.openaiKey`, default empty. Empty keys use
+  `DEEPL_API_KEY` and `OPENAI_API_KEY` from the process environment. Missing keys show the
+  field name and config path in the error tooltip. AI setup is optional and cannot prevent DeepL translation.
+  Reload config closes the window, cancels pending requests, and clears the caches.
+- Cache up to 100 successful results per provider by text, source, and target in memory.
+  A key or model change clears that provider's cache. Do not cache errors or cancelled replies.
+  Never save or log text, translations, keys, response bodies, or service exception messages.
+  Logs contain provider, character count, and status only. Source text leaves the machine
+  only in response to the hotkey, a DeepL language selection/retry, or the AI button.
+- Bound response bodies to 1 MiB. Use a 20-second HTTP timeout and an overall 25-second
+  DeepL or 40-second AI deadline. A newer request or window close cancels the old request.
+  Ignore late results even if the service ignores cancellation. Show distinct key, quota,
+  rate limit, network, timeout, refusal, and malformed response errors in the window. Keep
+  the buttons available for retry and language correction. Copy result is an explicit
+  clipboard change; translation never replaces the text in the original app.
+
 ## Configuration
 
 - File: `%APPDATA%\Klava\config.json`. Klava creates it from the embedded default on first run.

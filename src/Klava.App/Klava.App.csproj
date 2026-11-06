@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Klava.Core\Klava.Core.csproj" />
     <InternalsVisibleTo Include="Klava.App.Tests" />
+    <InternalsVisibleTo Include="Klava.UiProbe" />
   </ItemGroup>
 
 </Project>

@@ -4,6 +4,22 @@
 
 First public version.
 
+- Use GPT-6 Luna with reasoning effort set to none for AI translation details.
+
+- Use a simple light translation window with a standard Windows frame, native language
+  menus, and text buttons sized to their captions. Scale the complete layout before showing
+  it, including at 150% Windows scaling. Keep buttons aligned after resizing and reopening.
+  Show clear text sizes, formatted word meanings, and detected language names;
+  keep quick translations visible while AI details load, and use shorter setup hints.
+  Drag the header to move the window, resize from its edges, press Ctrl+C to copy the result,
+  or Ctrl+Enter for AI details. Copy confirms success in the button.
+
+- Translate selected words and phrases with Ctrl+Left Alt+T and DeepL. Default directions:
+  EN → RU, RU → EN, DE → RU; choose any EN/RU/DE pair in the result window. Restore the
+  clipboard after capture. An optional AI details button requests word senses,
+  examples, or alternative phrase translations through OpenAI. Configure `translation.deeplKey`
+  and, for AI details, `translation.openaiKey`. Neither text nor results are saved in logs.
+
 - Chatter filter with a global threshold and `chatteringKeys` for keys that chatter slower.
 - Layout switcher: single Shift tap switches the layout, double tap retypes the last word.
 - Double Shift tap with no typed word converts the selected text (up to `maxSelectionChars`,

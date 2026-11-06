@@ -14,6 +14,7 @@ public sealed class KlavaConfig
     public HotkeysConfig Hotkeys { get; set; } = new();
     public SwitcherConfig Switcher { get; set; } = new();
     public DebugConfig Debug { get; set; } = new();
+    public TranslationConfig Translation { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -48,6 +49,12 @@ public sealed class KlavaConfig
         Check(Hotkeys is not null, "hotkeys must be an object.");
         Check(Switcher is not null, "switcher must be an object.");
         Check(Debug is not null, "debug must be an object.");
+        Check(Translation is not null, "translation must be an object.");
+        Check(!string.IsNullOrWhiteSpace(Translation.Hotkey), "translation.hotkey must be a key combination.");
+        Check(!string.IsNullOrWhiteSpace(Translation.Model), "translation.model must not be empty.");
+        Check(Translation.DeeplKey is not null, "translation.deeplKey must be a string.");
+        Check(Translation.OpenaiKey is not null, "translation.openaiKey must be a string.");
+        Check(Translation.MaxChars is >= 1 and <= 5000, "translation.maxChars must be 1..5000.");
         Check(Debounce.ChatteringKeys is not null, "debounce.chatteringKeys must be an object.");
         Check(Hotkeys.Rules is not null, "hotkeys.rules must be a list.");
         Check(Switcher.Layouts is not null, "switcher.layouts must be a list.");
@@ -76,6 +83,15 @@ public sealed class KlavaConfig
         }
 
         var rules = new List<HotkeyRule>();
+        try
+        {
+            var trigger = Hotkey.Parse(Translation.Hotkey);
+            Check(trigger.Ctrl != Side.None || trigger.Alt != Side.None || trigger.Win != Side.None,
+                "translation.hotkey must include Ctrl, Alt, or Win.");
+            Check(!Vk.IsModifier(trigger.Vk), "translation.hotkey must end with a non-modifier key.");
+            if (Translation.Enabled) rules.Add(new HotkeyRule([trigger], [new TranslateSelection()]));
+        }
+        catch (FormatException ex) { throw new ConfigException(ex.Message); }
         foreach (var rule in Hotkeys.Rules)
         {
             Check(rule is not null, "hotkeys.rules must contain rule objects.");

@@ -57,6 +57,31 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 14i | With several months of saved history, close the history window and type normally; open the tray menu and history window, then Exit and restart | Typing stays responsive. The menu shows session counts. The history window catches up within about two seconds and counts remain after restart. |
 | 14e | Resize the history window down to its minimum size; check at 100%, 150%, and 200% display scaling, and move it between monitors with different scaling | The title, filters, notes, table, legend, status, and chart labels remain readable without overlap or clipped text. Check both charts and Last hour. |
 
+## Selection translation checks
+
+Configure `translation.deeplKey` and optionally `translation.openaiKey`, then Reload config.
+Run the app checks in Notepad, Chrome, and VS Code with EN and an AltGr layout (RU or DE).
+
+| # | Action | Expected result |
+|---|--------|-----------------|
+| T1 | Select an English phrase; press Ctrl+Left Alt+T | A DeepL RU translation opens near the pointer. Original text stays selected and unchanged. No AI request is made. |
+| T2 | Select a Russian phrase, then a German phrase; use the hotkey for each | RU → EN and DE → RU. Check all six directions using the language menus. |
+| T3 | Select `bank`, then click AI details | DeepL gives the initial result. Only the button requests AI senses, parts of speech, and examples. The result is labeled AI-generated. |
+| T4 | Select an ambiguous phrase and click AI details | Main translation, with different interpretations and context notes when needed. For `Gift`, compare explicit EN and DE sources. |
+| T5 | Copy text or an image, translate a selection, then paste the clipboard elsewhere | The prior clipboard content is preserved. Copy result replaces it only when clicked. |
+| T6 | Hold the translation trigger, release modifiers before T; repeat with an AltGr layout | One request per hold; no typed T or stuck modifiers. Right Alt+T does not open translation. Existing Right Alt symbol hotkeys still work. |
+| T7 | Try no selection in Chrome and VS Code; try multiline text and over 5000 characters | No-selection hints, multiline translation, and length-limit hint. VS Code whole-line copies are skipped. |
+| T8 | Use the hotkey in Windows Terminal; change foreground app immediately after the hotkey | No Ctrl+C is sent to the terminal. A changed foreground app produces a hint rather than a translation of another app's text. |
+| T9 | Close with Esc while loading; request another translation; switch languages quickly; reload config | No late result reopens the window or replaces the newer result. Typing stays responsive. |
+| T10 | Test missing and invalid keys, no network, quota/rate errors if available | A readable error in the window; retry buttons remain usable. Missing OpenAI setup does not prevent DeepL. Logs have no selected text, translations, or credentials. |
+| T11 | Pause Enabled or Hotkeys; set translation.enabled to false and reload | Translation hotkey is inactive. Restore settings afterward. |
+| T12 | Resize the window at 100%, 150%, and 200% scaling and open near monitor edges | Text, status, selectors, and buttons stay readable; long results scroll; the window opens inside the screen. |
+| T13 | Drag the standard title bar; resize each edge and corner; use Tab and Shift+Tab; hide and show the window | No duplicate frames or paint artifacts. Captions remain complete and footer buttons remain aligned. Keyboard focus is visible. Esc closes it. |
+| T14 | Open language menus and choose EN, RU, DE, and Auto; click Retry | Standard menus show complete names. Language names reflect detection or the chosen language. Retry uses DeepL. |
+| T15 | Press Ctrl+C with no text selected, then with part of the translation selected; use the Copy button | Full result, selected part, and full result are copied respectively. The Copy button briefly shows Copied. |
+| T16 | Open a long translation or AI article; scroll with the wheel, keyboard, and scroll bar | All content is reachable. Word senses, translations, and examples have clear visual separation. |
+| T17 | Press Ctrl+Enter; retry with missing OpenAI setup; click Settings | Ctrl+Enter requests AI details. Quick translation stays readable and copyable while AI loads or setup is missing. Settings opens the config and closes the popup. |
+
 ## Chatter check with the diagnostic logger
 
 `tools/kbdlog.py` logs Raw Input (what the keyboard sent) and hook events. Raw Input still

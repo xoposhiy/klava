@@ -4,6 +4,7 @@ namespace Klava.Core;
 public sealed class HotkeyEngine(IReadOnlyList<HotkeyRule> rules, IPlatform platform)
 {
     private readonly HashSet<int> _consumed = [];
+    private readonly HashSet<int> _commands = [];
 
     // Modifiers the user still holds but Klava already released for Windows.
     private readonly HashSet<int> _released = [];
@@ -36,9 +37,15 @@ public sealed class HotkeyEngine(IReadOnlyList<HotkeyRule> rules, IPlatform plat
             return false;
         }
 
-        if (e.IsUp) return _consumed.Remove(e.Vk);
+        if (e.IsUp)
+        {
+            _commands.Remove(e.Vk);
+            return _consumed.Remove(e.Vk);
+        }
+        if (repeat && _commands.Contains(e.Vk)) return true;
 
         if (Find(e.Vk, keys) is not var (trigger, rule)) return false;
+        if (rule.Action.Any(step => step is TranslateSelection)) _commands.Add(e.Vk);
         _consumed.Add(e.Vk);
         Fire(trigger, rule, keys);
         return true;

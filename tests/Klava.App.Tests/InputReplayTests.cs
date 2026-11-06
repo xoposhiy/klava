@@ -21,6 +21,20 @@ public class InputReplayTests
     private static bool Enabled => Environment.GetEnvironmentVariable("KLAVA_INPUT_TESTS") == "1";
 
     [Fact]
+    public void Translation_hotkey_leaves_no_modifier_down()
+    {
+        if (!Enabled) return;
+        var replay = new Replay();
+        replay.Key(Vk.LCtrl, false);
+        replay.Key(Vk.LAlt, false);
+        replay.Key('T', false);
+        replay.Key('T', true);
+        replay.Key(Vk.LAlt, true);
+        replay.Key(Vk.LCtrl, true);
+        replay.AssertAllUp();
+    }
+
+    [Fact]
     public void Right_alt_hotkey_leaves_no_modifier_down()
     {
         if (!Enabled) return;

@@ -14,6 +14,7 @@ internal sealed class TrayContext : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly InputHook _hook;
     private readonly SelectionConverter _selection = new();
+    private readonly TranslationController _translation;
     private readonly ChatterHistoryStore _history = new(Path.Combine(Log.Folder, "chatter-history.json"));
     private ChatterHistoryForm? _historyForm;
     private readonly Icon _activeIcon = MakeIcon(active: true);
@@ -26,7 +27,9 @@ internal sealed class TrayContext : ApplicationContext
 
     public TrayContext()
     {
-        _engine = CreateEngine(LoadSettings(out var configError));
+        _translation = new TranslationController(_selection);
+        var settings = LoadSettings(out var configError);
+        _engine = CreateEngine(settings);
         _hook = new InputHook(() => _engine);
         _hook.Start();
 
@@ -69,7 +72,8 @@ internal sealed class TrayContext : ApplicationContext
 
     private Engine CreateEngine(Settings settings)
     {
-        var engine = new Engine(settings, new WindowsPlatform(settings.Config.Switcher, _selection));
+        var engine = new Engine(settings, new WindowsPlatform(settings.Config.Switcher, _selection,
+            () => _translation.Start(settings.Config.Translation)));
         engine.BounceBlocked += OnBounce;
         engine.PressObserved += _history.RecordPress;
         engine.FastRepressPassed += OnFastRepress;
@@ -100,7 +104,9 @@ internal sealed class TrayContext : ApplicationContext
     {
         try
         {
-            _engine = CreateEngine(ConfigStore.Load());
+            var settings = ConfigStore.Load();
+            _translation.Reload();
+            _engine = CreateEngine(settings);
             Log.Info("Config reloaded");
             _tray.ShowBalloonTip(2000, "Klava", "Config reloaded.", ToolTipIcon.Info);
         }
@@ -207,6 +213,7 @@ internal sealed class TrayContext : ApplicationContext
         _hook.Dispose();
         _historyForm?.Dispose();
         _history.Dispose();
+        _translation.Dispose();
         _selection.Dispose();
         _tray.Visible = false;
         Log.Info("Stopped");

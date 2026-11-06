@@ -3,6 +3,18 @@
 {
   "enabled": true,
 
+  // Ctrl+Left Alt+T translates selected text with DeepL. Right Alt (AltGr) does not trigger it.
+  // More details (AI) is optional and calls OpenAI only when clicked.
+  // Empty keys use DEEPL_API_KEY and OPENAI_API_KEY from the process environment.
+  "translation": {
+    "enabled": true,
+    "hotkey": "^<!t",
+    "deeplKey": "",
+    "openaiKey": "",
+    "model": "gpt-6-luna",
+    "maxChars": 5000
+  },
+
   // Drop phantom presses (key chatter): a press sooner than thresholdMs after the release of
   // the same key. Bounces are usually 1-15 ms apart; real fast re-presses are 45+ ms apart.
   "debounce": {
