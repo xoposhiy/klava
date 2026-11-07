@@ -9,6 +9,8 @@ public static class Vk
     public const int CapsLock = 0x14;
     public const int Esc = 0x1B;
     public const int Space = 0x20;
+    public const int Home = 0x24;
+    public const int Delete = 0x2E;
     public const int LWin = 0x5B;
     public const int RWin = 0x5C;
     public const int LShift = 0xA0;

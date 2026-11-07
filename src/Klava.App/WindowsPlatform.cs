@@ -15,13 +15,15 @@ internal sealed class WindowsPlatform : IPlatform
     private readonly int[] _languages;
     private readonly SelectionConverter? _selection;
     private readonly Action? _translate;
+    private readonly TypingPrivacy? _privacy;
 
     /// <param name="selection">Runs the selected text conversion; null turns it off.</param>
-    public WindowsPlatform(SwitcherConfig config, SelectionConverter? selection = null, Action? translate = null)
+    public WindowsPlatform(SwitcherConfig config, SelectionConverter? selection = null, Action? translate = null, TypingPrivacy? privacy = null)
     {
         _method = config.SwitchMethod;
         _selection = selection;
         _translate = translate;
+        _privacy = privacy;
         _languages = config.Layouts.Select(LanguageId).Where(id => id != 0).ToArray();
     }
 
@@ -119,6 +121,7 @@ internal sealed class WindowsPlatform : IPlatform
     public bool IsKeyDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
     public bool CapsLockOn => (GetKeyState(VK_CAPITAL) & 1) != 0;
+    public TypingContext TypingContext => _privacy?.Context ?? new(0, 0, "unknown", 0, false);
 
     private nint NextLayout(nint current)
     {

@@ -32,6 +32,8 @@ internal static class FormTestKit
     {
         if (!form.Visible)
         {
+            // DrawToBitmap still renders controls without exposing test windows on the desktop.
+            form.Opacity = 0;
             form.ShowInTaskbar = false;
             form.StartPosition = FormStartPosition.Manual;
             form.Location = new Point(-30000, -30000);

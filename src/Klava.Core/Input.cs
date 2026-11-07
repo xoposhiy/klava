@@ -4,7 +4,7 @@ namespace Klava.Core;
 /// <param name="Vk">Virtual key code. Modifiers are side-specific (LShift, RShift, ...).</param>
 /// <param name="TimeMs">High-resolution time of the event in milliseconds.</param>
 /// <param name="Injected">True for events sent by SendInput (by Klava or other apps).</param>
-public readonly record struct KeyEvent(int Vk, int ScanCode, bool Extended, bool IsUp, long TimeMs, bool Injected = false)
+public readonly record struct KeyEvent(int Vk, int ScanCode, bool Extended, bool IsUp, long TimeMs, bool Injected = false, bool OwnInput = false)
 {
     /// <summary>Key identity for debounce: Enter and Numpad Enter are different keys.</summary>
     public int KeyId => Vk | (Extended ? 0x100 : 0);
@@ -29,6 +29,7 @@ public readonly record struct TypedKey(int Vk, int ScanCode, bool Shift, bool Ca
 /// <summary>Everything the core needs from the operating system.</summary>
 public interface IPlatform
 {
+    TypingContext TypingContext => new(0, 0, "unknown", 0, false);
     /// <summary>Current Caps Lock toggle state, including changes made by other apps.</summary>
     bool CapsLockOn { get; }
 

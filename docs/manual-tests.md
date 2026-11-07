@@ -8,7 +8,12 @@ Unit tests cannot prove how the hooks behave in real apps. Run these checks afte
 1. Close Caramba Switcher and AutoHotkey.
 2. Run `dotnet run --project src/Klava.App`, or start `dist\Klava.exe`.
 3. Check that the tray shows the blue "K" icon and that `%LOCALAPPDATA%\Klava\klava.log` has
-   a `Started` line.
+   a `Started` line. Startup must not open or briefly show any Klava windows.
+
+Automated UI checks in `dotnet test` and `scripts/publish.ps1` render transparent windows
+without taskbar entries. `dotnet run --project tests/Klava.UiProbe` opens a visible preview;
+`--verify` keeps that preview transparent. Tests with `KLAVA_INPUT_TESTS=1` use real input
+and can open a foreground test window.
 
 ## Checks
 
@@ -55,8 +60,39 @@ Do each check in Notepad, in Chrome, and in Windows Terminal.
 | 14f | Select Today and Last hour; tap a key, then hold it; try EN and RU | Total presses increase once per tap or hold, plus any detected bounces. Hold repeats do not increase totals. The hourly chart shows minute bars. |
 | 14g | Compare a key row and All keys | Each rate equals the displayed event count divided by Total presses. No `+`, unknown totals, or old-data controls appear. Charts use the same records as the table. |
 | 14h | Leave Last hour open without typing for over a minute; restart Klava | The rolling window advances; saved recent totals and rates remain after restart. |
+| 14j | With enough keys to scroll, select a key, scroll away from it, and wait for new counts. Repeat in Last hour. | The selected key, current column, and visible top key remain stable. Last hour does not redraw every second while idle. |
 | 14i | With several months of saved history, close the history window and type normally; open the tray menu and history window, then Exit and restart | Typing stays responsive. The menu shows session counts. The history window catches up within about two seconds and counts remain after restart. |
 | 14e | Resize the history window down to its minimum size; check at 100%, 150%, and 200% display scaling, and move it between monitors with different scaling | The title, filters, notes, table, legend, status, and chart labels remain readable without overlap or clipped text. Check both charts and Last hour. |
+
+## Typing episode and dictionary checks
+
+Run in Notepad, VS Code, and a browser input with EN and RU/AltGr layouts. Close other
+keyboard tools first. Open **Typing episodes...** from the tray for manual analysis.
+For E1–E3, explicitly add the test words `llm` and `ast` in the Dictionary tab first.
+
+| # | Action | Expected result |
+|---|--------|-----------------|
+| E1 | In RU, type the physical keys for `llm` and pause; then press Space. Repeat with `ast`, Enter, and punctuation. | No change before the boundary; `ддь` becomes `llm`, `фые` becomes `ast`. Space/punctuation occurs once. Enter submits the corrected text. RU stays active. |
+| E2 | Type the uppercase equivalents, a mixed-case word, `ддь1`, and a word outside the dictionary. | Case is preserved. Only whole dictionary matches change. Digits prevent a partial match. |
+| E3 | Type a dictionary word in RU; click elsewhere, move the caret, select text, or use Ctrl/Alt/Win before the boundary. | No stale word is deleted or corrected at the new caret. Existing Right Alt hotkeys work and leave no held modifiers. |
+| E4 | Type and fix words with Backspace/Delete, Shift-Shift, a temporary layout visit, and Triple-Shift → text → Shift. Select text by double click and drag, then type. Pause for 3 seconds. | Episodes include the surrounding characters, key times/layouts, mouse details, layout reasons, and correction semantics. Adjacent triggers share an episode. Separate fields/windows do not share text. |
+| E5 | Type ordinary text without edits, then trigger episodes; click Analyze saved episodes twice. | Usage includes ordinary completed words. Error episodes and signal counts are separate. The second analysis does not double counts. No word is approved automatically. |
+| E6 | Select an English candidate and approve it; hold a modifier while the update is applied; restart Klava. | The word works at the next boundary. Held-key state stays correct. The approval remains after restart. |
+| E7 | Type unique test strings in native and browser password fields, then return to normal fields. Inspect the local episode JSON files and logs. | Password strings/key codes are absent when fields are recognized. Unknown/stale fields are skipped. Normal collection resumes. Typed text appears only in typing files, never ordinary/error logs. |
+| E8 | Set typing.autocorrect=false; then typing.enabled=false, reloading each time. Pause Enabled as well. Restore settings. | The first setting keeps collection and stops replacements. The second and pause stop both, including selected-text correction recording. |
+| E9 | Publish with `-Restart`. Before opening any other Klava window, select **Typing episodes...** once from the tray. Minimize the window and select the same item again. Resize to minimum at 100%, 150%, and 200% DPI. Keep typing during a large manual analysis. | The first selection shows the window in front. The second restores the same window. It remains readable. Analysis does not delay typing. Closing the window leaves collection active. |
+| E10 | In an isolated test copy, age raw files to day 6 and day 7; restart with expired unanalyzed files. | A balloon offers analysis before deletion. Raw files expire; results, usage, approvals, and heuristic-version runs remain. Expiry does not start analysis. |
+| E11 | In RU, switch to EN, type `gjnjv`, then use Shift-Shift to get `потом`. Run analysis. Repeat with a clean EN visit for `http`. | `gjnjv` is not proposed. The clean `http` visit supplies evidence. Unapproved words appear in Candidates; approved words appear in Dictionary. |
+| E12 | After a correction, type another word and edit its last letter; then try Shift+Home followed by Delete. In a separate correction, use immediate Ctrl+Z or Backspace into the corrected word. | The unrelated edit and navigation do not produce a false-positive signal. Undo or Backspace reaching the corrected word can produce one. |
+| E13 | Start an isolated copy with no approved words. Open Dictionary, type RU equivalents of the specification's example words, then add one word manually and restart. | Dictionary starts empty and no example word is corrected. Only the added word appears and becomes active. It remains visible without any analysis or usage. No word list appears in config. |
+| E14 | With `cd` unapproved, start an empty line in RU. Type the keys for `cd` and Space, paste a single-line argument, press Home and Delete twice, switch to EN, type `cd` and press Enter. Click **Analyze saved episodes**. | The Candidates row shows `cd` beside `св` with a `line-start-retype` signal. A second analysis keeps the same counts. |
+| E15 | Sort Candidates by each column in both directions. Select a row, scroll away from it, and wait at least 10 seconds; type in another app to update usage. | Sort direction, selected word, current column, and visible top word stay stable. Counts sort as numbers. The table does not reset on unchanged data. |
+| E16 | Scroll Dictionary, select a word, and leave a partly typed word in Add word. Wait at least 10 seconds. Enter invalid input and click Add word, then wait again. Select text in repeated patterns and wait. | Dictionary selection and scroll position, draft input, and unchanged pattern selection remain stable. The validation message stays until input changes. Approve selected word is disabled on Dictionary or without a selected candidate. |
+| E17 | Start analysis with enough saved episodes to keep it running for several seconds. | Analyze saved episodes stays disabled until analysis finishes. Collection continues and the result appears without changing the candidate sort. |
+
+For offline analysis, exit Klava and run `dotnet run --project tests/Klava.UiProbe --
+--analyze-typing <typing-folder>`. This uses the normal store and heuristic versions, keeps
+usage counts and approvals, and prints a JSON snapshot. Do not run it while Klava is active.
 
 ## Selection translation checks
 

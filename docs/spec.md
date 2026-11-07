@@ -38,7 +38,12 @@ blocked events do not reach later stages or other apps.
 2. Debounce filter.
 3. Key state update (which physical keys are down).
 4. Hotkeys.
-5. Layout switcher (observes only, never blocks).
+5. Dictionary autocorrection at word boundaries (never blocks the physical boundary key).
+6. Layout switcher (observes only, never blocks).
+
+The optional typing recorder observes injected events without passing them through the decision
+stages. It also records whether a physical event was blocked. Injected events never update
+physical key state, chatter counts, or the layout switcher's word buffer.
 
 Mouse button and wheel events cancel a pending Shift tap and clear the word buffer.
 
@@ -107,6 +112,8 @@ Mouse button and wheel events cancel a pending Shift tap and clear the word buff
   For the last hour, show minute bars.
   Refresh once per second. Requested counts appear on the next refresh, normally within
   about two seconds.
+  Preserve the selected key, current column, and table scroll position when counts refresh.
+  With no new counts, advance Last hour only when the minute changes.
 - History records the filter's decisions at the time of each event. Changing a threshold
   does not change old counts. The session counts in the tray keep their current meaning.
 
@@ -404,6 +411,127 @@ Known limits:
   the buttons available for retry and language correction. Copy result is an explicit
   clipboard change; translation never replaces the text in the original app.
 
+## Typing episodes and dictionary autocorrection
+
+### Dictionary
+
+- `typing.enabled` defaults to true. It enables local typing collection and dictionary
+  autocorrection. `typing.autocorrect` defaults to true and can disable correction while
+  keeping collection active. Pausing Klava pauses both.
+- The dictionary starts empty. Its only stored source is `ApprovedWords` in
+  `%LOCALAPPDATA%\Klava\typing\analysis.json`. No built-in word list or config word list
+  exists. Accept 1..100 ASCII letters per word, at most 10,000 words. Store words in lowercase.
+  Only a manual addition or an explicitly approved candidate adds a word.
+- The first dictionary implementation maps Russian keyboard letters to their US English
+  physical equivalents. Match the complete word without regard to case and preserve the
+  input case. For example, after approving the corresponding words, `ддь` becomes `llm`,
+  `ДДЬ` becomes `LLM`, and `фые` becomes `ast`.
+- Correct after Space, Enter, or punctuation. Never correct during a word. Digits remain
+  part of the word, so `ддь1` does not match `llm`. Apply every dictionary match without
+  language detection or contextual checks. Do not change the active keyboard layout.
+- Send Backspaces and Unicode replacement text before passing the physical boundary key.
+  Do not replace a physical event with an injected event. Keep the delimiter's normal
+  behavior, including Enter in a chat or terminal.
+- Clear the pending word after mouse actions, navigation, shortcuts, focus changes,
+  external injected input, unknown/private fields, or a layout change. Plain Backspace
+  edits the pending word. Limit the word to 100 characters and reject an overflowed word.
+- Save a semantic correction event with original text, replacement text, correction type,
+  and rule ID. Record the following physical edits and Klava's marked synthetic events.
+
+### Collection and privacy
+
+- Collect physical and synthetic key presses and releases, virtual and scan codes, extended
+  flags, modifier and Caps Lock state, inferred characters, layout handles, foreground
+  window and focus handles, process name, and input source (`physical`, `injected`, `klava`).
+  Record the monotonic time of each event and a UTC time base for event timestamps and gaps.
+  Characters are inferred from key state and layout; they are not text read from the app.
+  IME composition, dead keys, and arbitrary pasted text cannot always be reconstructed.
+- Record mouse button presses/releases, wheel events, and movement during a left-button
+  drag, including coordinates, time, message code, and physical or synthetic source. Raw
+  clicks and drag events allow later analysis of double clicks and likely selections.
+- Record requested Shift layout changes with the old and new layouts and `shift-tap`
+  reason. Detect other changes on the next key event with `observed` reason; their precise
+  OS cause is unknown. Include Shift-Shift word and selected-text correction semantics.
+- Keep a ring of the last 20 inferred characters and their nearby events. Backspace, Delete,
+  Shift, layout changes, physical mouse actions, and automatic corrections trigger an
+  episode. Start with the ring and keep recording through at least 20 following characters
+  while input continues. New triggers extend the same episode. Merge overlapping context.
+  Three seconds without events ends an episode even when fewer than 20 following characters
+  were entered. Focus/privacy changes, config reload, manual analysis, and clean exit also
+  end it. Context does not cross these boundaries or an idle gap.
+- Bound non-character pre-context to 512 events. Split a continuous episode at 10,000 events
+  with `continuation` end reason. Keep event times so later analysis can join these parts.
+- Use Windows UI Automation `IsPassword` on a separate MTA thread. Poll every 50 ms. Skip
+  collection and dictionary correction when the field is a password, is unknown, belongs
+  to Klava, has changed native focus, or the last successful check is over 150 ms old.
+  This is best effort: provider errors and fast focus changes within one native control
+  can limit detection. Do not put private key codes or characters in episode events.
+- Ordinary text is intentionally collected locally. Keep it out of `klava.log` and
+  `errors.log`. No episode or analysis data is sent to a service.
+
+### Storage and manual analysis
+
+- Store versioned raw JSON files in `%LOCALAPPDATA%\Klava\typing\episode-*.json`. Store
+  aggregate word usage, heuristic results, completed analysis runs, approved dictionary
+  words, and expiry notices in `typing\analysis.json` with no automatic expiry.
+- Expire raw files after seven days. Warn about unanalyzed files from day six with a tray
+  balloon offering manual analysis. After a long shutdown, publish the notice before
+  deleting expired unanalyzed files on a later cleanup pass. Analysis never runs on expiry.
+  Delete old unfinished raw temporary files too. Preserve aggregate results and approvals.
+- Record each analyzed episode ID with every heuristic ID and version, including runs
+  that produce no signals. Repeating analysis does not count the same version twice.
+  A new heuristic or version can analyze every raw episode still retained.
+  Display counts from the current heuristic versions; keep earlier results for reference.
+- The first selection of `Typing episodes...` in the tray shows the window, including
+  after a publish with `-Restart`. Later selections bring the same open window forward.
+  The window shows saved episode counts, a candidate
+  table, and repeated edit patterns. `Analyze saved episodes` is the only analysis trigger.
+  Run analysis separately from event collection so a long scan cannot block the event queue.
+  In the Candidates tab, show each English word beside the letters the same keys produce
+  in Russian. Use the dictionary's layout mapping even when the signal has no original text.
+  The Dictionary tab shows both forms for every stored word,
+  including words with no usage or analysis signals, and provides an Add word action. Show an
+  explicit empty-dictionary message. Label supporting episodes as evidence, not confirmed errors.
+- Refresh only the controls whose data changed. Keep the candidate sort column and direction,
+  selected word, current column, and table scroll position across updates. Sort counts as numbers.
+  Keep dictionary selection and scroll position, unfinished word input, and text selection in
+  unchanged patterns. Keep word validation messages until the input changes. Enable candidate
+  approval only for a selected row in Candidates. Disable analysis while it is running.
+- Initial heuristics: Shift-Shift and dictionary conversions; a short word during a temporary layout visit;
+  deleted words retyped in another layout; deletion plus an observed layout switch before
+  retyping; Backspace reaching the corrected word or immediate Ctrl+Z within three seconds
+  (possible false positive); repeated edit/layout-switch count patterns. Ignore edits confined
+  to later text and stop attributing edits after navigation or mouse actions. Signals are evidence, not confirmed
+  errors. Propose English dictionary candidates only when the final word is English.
+- At the start of an episode or after Enter, recognize a Russian-layout word followed by a
+  space and optional typed or pasted arguments. A plain Home (optionally after Shift+Home),
+  one Delete per letter, and the matching English word in the other layout provide a
+  `line-start-retype` signal. The English word ends at a space, Enter, or the episode end.
+  Mouse actions, other shortcuts, and other caret moves interrupt this sequence.
+  If the episode starts with one missing press, require its physical key release during the
+  first word and a match for all remaining letters. Mark that signal as partial and store
+  only the observed letters as its original text.
+- A temporary layout visit must contain one short word without edits, shortcuts, navigation,
+  mouse actions, or automatic conversions. A return followed immediately by Shift-Shift
+  conversion is a correction of the visit's input, not evidence of an intended English word.
+  Inspect correction semantics after the return before proposing the original typed letters.
+- Count completed word uses across all recorded normal input, including input outside
+  episodes. Normalize case and Russian physical equivalents. Show usage separately from
+  error episodes and the types/counts of heuristic signals. One episode can produce several
+  signals; do not present the signal total as the number of confirmed mistakes.
+- `Approve selected word` followed by the user's confirmation adds a candidate. The user can
+  also enter a word and click `Add word` in the Dictionary tab.
+  Apply approved words automatically without rebuilding the active input engine or losing
+  held-key state. Never remove words or approve candidates through analysis.
+- The hook only makes bounded non-waiting queue writes (8,192 events). A storage worker
+  groups events, counts usage, writes files, and performs cleanup. Save through flushed
+  temporary files and atomic replacement. Retry failed episode saves from a bounded memory
+  buffer of 32 episodes. A full queue/buffer reports data loss and breaks context instead
+  of joining incomplete input. Clean exit drains queued events; a forced stop can lose data.
+- Keep an unreadable/unsupported analysis archive unchanged. Collect in memory and show an
+  error. A worker failure stops collection, reports its type without text, and leaves the
+  keyboard hook running.
+
 ## Configuration
 
 - File: `%APPDATA%\Klava\config.json`. Klava creates it from the embedded default on first run.
@@ -416,8 +544,9 @@ Known limits:
 
 ## Tray app
 
+- Start with only the tray icon. Open windows only after a user action.
 - Tray icon menu: Enabled, Debounce, Hotkeys, Layout switcher (check boxes), blocked bounce
-  counts, Chatter history, Open config, Reload config, Open log, Open error log, Start with Windows, Exit.
+  counts, Chatter history, Typing episodes, Open config, Reload config, Open log, Open error log, Start with Windows, Exit.
 - One instance per user session.
 - Copy session counters under a short lock. Sort and format the counters and update menu
   controls after releasing the lock, so UI work does not hold up hook callbacks.
@@ -469,5 +598,5 @@ Known limits:
 
 ## Not in scope yet
 
-- Automatic layout detection while typing.
+- General automatic layout detection while typing beyond the approved RU-to-EN dictionary.
 - Per-app rules.

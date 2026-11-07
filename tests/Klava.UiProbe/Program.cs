@@ -9,6 +9,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args is ["--analyze-typing", var folder]) return AnalyzeTyping(folder);
         Application.SetHighDpiMode(args.Contains("--unaware") ? HighDpiMode.DpiUnaware : HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
@@ -16,6 +17,11 @@ internal static class Program
             "Ctrl+C copies the result. Ctrl+Enter requests AI details. Esc closes the window.", _ => new PreviewClient());
         form.StartPosition = FormStartPosition.CenterScreen;
         var verify = args.Contains("--verify");
+        if (verify)
+        {
+            form.Opacity = 0;
+            form.ShowInTaskbar = false;
+        }
         var failure = false;
         form.Shown += (_, _) => form.BeginInvoke(() =>
         {
@@ -40,7 +46,7 @@ internal static class Program
                     form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                     bitmap.Save(Path.Combine(folder, $"translation-native-{form.DeviceDpi}-{name}.png"));
                 }
-                return new { name, form.ClientSize, Buttons = metrics };
+                return new { name, form.ClientSize, form.Opacity, form.ShowInTaskbar, Buttons = metrics };
             }
             // Windows may limit the initial size to the monitor work area.
             failure = Math.Abs(form.Padding.Left - 18 * form.DeviceDpi / 96) > 1
@@ -62,6 +68,22 @@ internal static class Program
         });
         Application.Run(form);
         return failure ? 1 : 0;
+    }
+
+    private static int AnalyzeTyping(string folder)
+    {
+        if (!Directory.Exists(folder) || System.Diagnostics.Process.GetProcessesByName("Klava").Length > 0)
+        {
+            Console.Error.WriteLine("Exit Klava and pass an existing typing folder before offline analysis.");
+            return 1;
+        }
+        using var store = new TypingEpisodeStore(folder);
+        if (!SpinWait.SpinUntil(() => !store.Snapshot.Status.StartsWith("Loading", StringComparison.Ordinal), TimeSpan.FromSeconds(5))
+            || !store.Snapshot.Status.StartsWith("Ready", StringComparison.Ordinal)) return 1;
+        store.AnalyzeNow();
+        if (!SpinWait.SpinUntil(() => store.Snapshot.Status.StartsWith("Analysis complete", StringComparison.Ordinal), TimeSpan.FromSeconds(30))) return 1;
+        Console.WriteLine(JsonSerializer.Serialize(store.Snapshot));
+        return 0;
     }
 
     private static IEnumerable<Control> Descendants(Control control) => control.Controls.Cast<Control>()

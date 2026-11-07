@@ -40,6 +40,13 @@
     "switchMethod": "Message"
   },
 
+  // Local correction episodes contain typed text, expire after 7 days, and are analyzed manually.
+  // Add dictionary words in Typing episodes > Dictionary. The dictionary starts empty.
+  "typing": {
+    "enabled": true,
+    "autocorrect": true
+  },
+
   // Debug: log each press of these keys with the keys and pauses around it, for example
   // ["M", "LShift", "RShift"]. The log then has fragments of typed text: keep it empty normally.
   "debug": {

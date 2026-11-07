@@ -9,6 +9,7 @@ namespace Klava.App.Tests;
 /// Windows key state. The keys go to the foreground window, so these tests run only when
 /// KLAVA_INPUT_TESTS=1. The hotkey actions send the unassigned key vkE8, so nothing is typed.
 /// </summary>
+[Collection("Input replay")]
 public class InputReplayTests
 {
     private const string Config = """

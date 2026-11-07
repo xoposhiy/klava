@@ -30,6 +30,12 @@ public class TranslationDpiTests
         using var json = JsonDocument.Parse(report);
         Assert.True(json.RootElement.GetProperty("Passed").GetBoolean());
         if (unaware) Assert.Equal(96, json.RootElement.GetProperty("DeviceDpi").GetInt32());
-        Assert.Equal(3, json.RootElement.GetProperty("Scenarios").GetArrayLength());
+        var scenarios = json.RootElement.GetProperty("Scenarios");
+        Assert.Equal(3, scenarios.GetArrayLength());
+        foreach (var scenario in scenarios.EnumerateArray())
+        {
+            Assert.Equal(0, scenario.GetProperty("Opacity").GetDouble());
+            Assert.False(scenario.GetProperty("ShowInTaskbar").GetBoolean());
+        }
     }
 }

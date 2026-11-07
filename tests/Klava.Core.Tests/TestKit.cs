@@ -12,6 +12,10 @@ public sealed class FakePlatform : IPlatform
     public int Switches { get; private set; }
     public nint Layout { get; private set; } = 1;
     public bool CapsLockOn { get; set; }
+    public bool RecordTyping { get; set; }
+    public long Window { get; set; } = 1;
+    public long Focus { get; set; } = 1;
+    public TypingContext TypingContext => new(Window, Focus, "test", (long)Layout, RecordTyping);
     public Func<int, bool> IsKeyDownFunc { get; set; } = _ => true;
     public List<(nint From, nint To, int MaxChars)> SelectionRequests { get; } = [];
 
@@ -49,6 +53,7 @@ public sealed class FakePlatform : IPlatform
     private static string Char(TypedKey key, nint layout)
     {
         if (key.Vk == Vk.Space) return " ";
+        if (key.Vk == 0xBF) return layout == 2 ? key.Shift ? "," : "." : key.Shift ? "?" : "/";
         var en = KeyNames.Name(key.Vk).ToLowerInvariant();
         var index = EnKeys.IndexOf(en, StringComparison.Ordinal);
         var c = layout == 2 && index >= 0 ? RuKeys[index].ToString() : en;

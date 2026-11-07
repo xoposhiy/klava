@@ -16,6 +16,13 @@ internal sealed class TrayContext : ApplicationContext
     private readonly SelectionConverter _selection = new();
     private readonly TranslationController _translation;
     private readonly ChatterHistoryStore _history = new(Path.Combine(Log.Folder, "chatter-history.json"));
+    private readonly TypingPrivacy _typingPrivacy = new();
+    private readonly TypingEpisodeStore _typing = new(Path.Combine(Log.Folder, "typing"));
+    private readonly System.Windows.Forms.Timer _typingTimer = new() { Interval = 1000 };
+    private TypingEpisodesForm? _typingForm;
+    private string _approvedWords = "";
+    private int _expiryNoticeCount;
+    private bool _typingNoticeVisible;
     private ChatterHistoryForm? _historyForm;
     private readonly Icon _activeIcon = MakeIcon(active: true);
     private readonly Icon _pausedIcon = MakeIcon(active: false);
@@ -30,6 +37,7 @@ internal sealed class TrayContext : ApplicationContext
         _translation = new TranslationController(_selection);
         var settings = LoadSettings(out var configError);
         _engine = CreateEngine(settings);
+        _selection.TypingObserved += e => _engine.ObserveExternalTyping(e);
         _hook = new InputHook(() => _engine);
         _hook.Start();
 
@@ -51,6 +59,7 @@ internal sealed class TrayContext : ApplicationContext
             _stats,
             _fastStats,
             new ToolStripMenuItem("Chatter history...", null, (_, _) => ShowHistory()),
+            new ToolStripMenuItem("Typing episodes...", null, (_, _) => ShowTypingEpisodes()),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Open config", null, (_, _) => Open(ConfigStore.FilePath)),
             new ToolStripMenuItem("Reload config", null, (_, _) => Reload()),
@@ -63,6 +72,22 @@ internal sealed class TrayContext : ApplicationContext
         menu.Opening += (_, _) => RefreshMenu();
 
         _tray = new NotifyIcon { ContextMenuStrip = menu, Visible = true };
+        _tray.BalloonTipClicked += (_, _) => { if (_typingNoticeVisible) ShowTypingEpisodes(); };
+        _tray.BalloonTipClosed += (_, _) => _typingNoticeVisible = false;
+        _typingTimer.Tick += (_, _) =>
+        {
+            ApplyTypingDictionary();
+            var count = _typing.Snapshot.PendingExpiry;
+            if (count > _expiryNoticeCount)
+            {
+                _typingNoticeVisible = true;
+                _tray.ShowBalloonTip(10000, "Typing episodes expire soon",
+                    "Some episodes will be deleted after 7 days. Open Typing episodes to run analysis before deletion.", ToolTipIcon.Info);
+                _typing.ExpiryNoticeShown();
+            }
+            _expiryNoticeCount = count;
+        };
+        _typingTimer.Start();
         RefreshMenu();
         Log.Info($"Started Klava {Application.ProductVersion}");
 
@@ -74,7 +99,9 @@ internal sealed class TrayContext : ApplicationContext
     private Engine CreateEngine(Settings settings)
     {
         var engine = new Engine(settings, new WindowsPlatform(settings.Config.Switcher, _selection,
-            () => _translation.Start(settings.Config.Translation)));
+            () => _translation.Start(settings.Config.Translation), _typingPrivacy));
+        engine.SetApprovedTypingWords(_typing.Snapshot.ApprovedWords);
+        engine.TypingObserved += _typing.Record;
         engine.BounceBlocked += OnBounce;
         engine.PressObserved += _history.RecordPress;
         engine.FastRepressPassed += OnFastRepress;
@@ -107,9 +134,11 @@ internal sealed class TrayContext : ApplicationContext
         {
             var settings = ConfigStore.Load();
             _translation.Reload();
+            _typing.ResetContext();
             _engine = CreateEngine(settings);
             Log.Info("Config reloaded");
             _tray.ShowBalloonTip(2000, "Klava", "Config reloaded.", ToolTipIcon.Info);
+            _typingNoticeVisible = false;
         }
         catch (Exception ex) when (ex is ConfigException or IOException or UnauthorizedAccessException)
         {
@@ -191,8 +220,25 @@ internal sealed class TrayContext : ApplicationContext
         _historyForm.Activate();
     }
 
+    private void ShowTypingEpisodes()
+    {
+        if (_typingForm is null || _typingForm.IsDisposed) _typingForm = new(_typing, ApplyTypingDictionary);
+        if (_typingForm.WindowState == FormWindowState.Minimized) _typingForm.WindowState = FormWindowState.Normal;
+        _typingForm.Show();
+        _typingForm.Activate();
+    }
+
+    private void ApplyTypingDictionary()
+    {
+        var words = string.Join("\n", _typing.Snapshot.ApprovedWords.Order());
+        if (words == _approvedWords) return;
+        _engine.SetApprovedTypingWords(_typing.Snapshot.ApprovedWords);
+        _approvedWords = words;
+    }
+
     private void Warn(string message)
     {
+        _typingNoticeVisible = false;
         Log.Warn(message);
         _tray.ShowBalloonTip(8000, "Klava", message, ToolTipIcon.Warning);
     }
@@ -218,6 +264,10 @@ internal sealed class TrayContext : ApplicationContext
     private void Exit()
     {
         _hook.Dispose();
+        _typingTimer.Dispose();
+        _typingForm?.Dispose();
+        _typing.Dispose();
+        _typingPrivacy.Dispose();
         _historyForm?.Dispose();
         _history.Dispose();
         _translation.Dispose();

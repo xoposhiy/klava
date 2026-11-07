@@ -86,20 +86,22 @@ internal sealed class ChatterHistoryForm : Form
 
     private int? SelectedKey => _keys.SelectedRows.Count == 0 ? null : _keys.SelectedRows[0].Tag as int?;
 
-    private void RefreshHistory(bool force = false)
+    internal void RefreshHistory(bool force = false)
     {
         _status.Text = _store.Status;
         var snapshot = _store.Snapshot;
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        if (!force && ReferenceEquals(snapshot, _lastSnapshot) && today == _today && _period.SelectedIndex != 5) return;
+        var now = DateTime.Now;
+        var today = DateOnly.FromDateTime(now);
+        if (!force && ReferenceEquals(snapshot, _lastSnapshot) && today == _today
+            && (_period.SelectedIndex != 5 || ChatterHistory.RoundMinute(now) == ChatterHistory.RoundMinute(_now))) return;
         _lastSnapshot = snapshot;
         _today = today;
-        _now = DateTime.Now;
+        _now = now;
         var start = PeriodStart(snapshot);
         _filtered = snapshot.Where(d => d.Date >= start && d.Date <= today
             && (_period.SelectedIndex != 5 || d.Minute >= ChatterHistory.RoundMinute(_now.AddHours(-1)))
             && (d.Minute is null || d.Minute <= _now)).ToArray();
-        var selected = SelectedKey;
+        var state = new TableViewState(_keys, row => row.Tag);
         _refreshing = true;
         try
         {
@@ -111,10 +113,7 @@ internal sealed class ChatterHistoryForm : Form
                 var row = AddRow(KeyNames.Name(key.Key), key.ToArray());
                 row.Tag = key.Key;
             }
-            _keys.ClearSelection();
-            var selectedRow = _keys.Rows.Cast<DataGridViewRow>().FirstOrDefault(r => Equals(r.Tag, selected)) ?? _keys.Rows[0];
-            selectedRow.Selected = true;
-            _keys.CurrentCell = selectedRow.Cells[0];
+            state.Restore(_keys, row => row.Tag);
         }
         finally { _refreshing = false; }
         UpdateChart();

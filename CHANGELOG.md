@@ -4,6 +4,30 @@
 
 First public version.
 
+- Keep automated UI checks invisible during tests and publishing, including native DPI checks.
+- Preserve candidate sorting, selection, and scroll position when Typing episodes refreshes.
+  Keep unchanged tables, dictionary lists, and patterns intact. Keep dictionary input errors
+  visible, disable approval for hidden candidates, and keep analysis disabled while it runs.
+  Preserve Chatter history selection and scroll position; refresh idle Last hour once per minute.
+- Fix the first tray menu selection leaving the Typing episodes window hidden after
+  a publish with `-Restart`.
+- Show each English candidate beside its Russian keyboard spelling. Show both spellings
+  for approved words too.
+- Find layout mistakes in a command that was edited with Home and Delete after its
+  arguments were typed or pasted. Label evidence with a missing first press as partial.
+
+- Exclude discarded Shift-Shift input from temporary-layout dictionary candidates. Do not
+  treat edits to later text or actions after navigation as evidence of a failed correction.
+  Show new candidates separately from the complete Dictionary tab.
+
+- Collect local typing episodes around edits, Shift gestures, layout changes, mouse actions,
+  and automatic corrections. Keep raw events for 7 days with an expiry notice; keep aggregate
+  usage and versioned analysis results. Recognized password fields are excluded.
+- Correct approved RU-layout words at word boundaries without changing the active layout.
+  The dictionary starts empty and has one stored source. Open Typing episodes from the tray
+  to run analysis manually, confirm candidates, or view and add words in the Dictionary tab.
+  No built-in word list or typing.words config setting exists.
+
 - Use GPT-6 Luna with reasoning effort set to none for AI translation details.
 
 - Use a simple light translation window with a standard Windows frame, native language

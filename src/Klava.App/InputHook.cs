@@ -23,6 +23,7 @@ internal sealed class InputHook : IDisposable
     private nint _keyboardHook, _mouseHook;
     private nint _foreground;
     private Exception? _startError;
+    private bool _dragging;
 
     public InputHook(Func<Engine> engine)
     {
@@ -80,7 +81,8 @@ internal sealed class InputHook : IDisposable
                 (k.flags & LLKHF_EXTENDED) != 0,
                 (k.flags & LLKHF_UP) != 0,
                 timeMs,
-                (k.flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED)) != 0);
+                (k.flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED)) != 0,
+                k.dwExtraInfo == WindowsPlatform.Marker);
             try
             {
                 var engine = _engine();
@@ -98,12 +100,17 @@ internal sealed class InputHook : IDisposable
 
     private nint MouseProc(int nCode, nint wParam, nint lParam)
     {
-        if (nCode >= 0 && (uint)wParam is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN
-                or WM_XBUTTONDOWN or WM_MOUSEWHEEL or WM_MOUSEHWHEEL)
+        var message = (uint)wParam;
+        if (nCode >= 0 && (message is >= 0x0201 and <= 0x020E || message == 0x0200 && _dragging))
         {
             try
             {
-                _engine().OnMouseButton();
+                var mouse = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                var injected = (mouse.flags & 3) != 0;
+                if (!injected && message == WM_LBUTTONDOWN) _dragging = true;
+                if (!injected && message == 0x0202) _dragging = false;
+                var kind = message == 0x0200 ? "move" : $"message:{message:X}";
+                _engine().OnMouseInput(Clock.NowMs(), kind, mouse.x, mouse.y, injected, mouse.dwExtraInfo == WindowsPlatform.Marker);
             }
             catch (Exception ex)
             {

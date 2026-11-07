@@ -15,6 +15,7 @@ public sealed class KlavaConfig
     public SwitcherConfig Switcher { get; set; } = new();
     public DebugConfig Debug { get; set; } = new();
     public TranslationConfig Translation { get; set; } = new();
+    public TypingConfig Typing { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -50,6 +51,7 @@ public sealed class KlavaConfig
         Check(Switcher is not null, "switcher must be an object.");
         Check(Debug is not null, "debug must be an object.");
         Check(Translation is not null, "translation must be an object.");
+        Check(Typing is not null, "typing must be an object.");
         Check(!string.IsNullOrWhiteSpace(Translation.Hotkey), "translation.hotkey must be a key combination.");
         Check(!string.IsNullOrWhiteSpace(Translation.Model), "translation.model must not be empty.");
         Check(Translation.DeeplKey is not null, "translation.deeplKey must be a string.");

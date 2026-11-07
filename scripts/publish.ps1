@@ -26,7 +26,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 Write-Host "Published $exe"
 
 if ($Restart) {
-    Start-Process $exe -WindowStyle Hidden
+    # Klava starts in the tray. Windows uses this setting for the first window the user opens.
+    Start-Process $exe -WindowStyle Normal
     Write-Host "Started $exe"
 }
 

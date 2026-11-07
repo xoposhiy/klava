@@ -13,8 +13,11 @@ A small Windows tray app that fixes and extends keyboard input with one low-leve
 - **Selection translation.** Ctrl+Left Alt+T opens a quick DeepL translation. An optional
   AI details button gives word senses and examples or alternative phrase translations.
   Supports English, Russian, and German.
+- **Typing episodes and dictionary.** Record local correction episodes and analyze them
+  manually. Correct approved English words typed with the Russian layout at word boundaries,
+  without changing the active layout: `ддь` → `llm`, `фые` → `ast`.
 
-All three work in one hook and in a fixed order, so the chatter filter removes a phantom Shift
+Input features work in one hook and in a fixed order, so the chatter filter removes a phantom Shift
 press before the layout switcher can see it. Separate tools cannot guarantee that.
 
 ## Install
@@ -63,6 +66,34 @@ turn it off when you are done.
   "switchMethod": "Message"       // or AltShift, CtrlShift, WinSpace if an app ignores Message
 }
 ```
+
+### Typing episodes and dictionary
+
+Collection and dictionary correction are enabled by default, including for existing configs.
+Ordinary typed text is stored locally in `%LOCALAPPDATA%\Klava\typing` around potential
+corrections. Raw episodes expire after seven days; aggregate usage and analysis results remain.
+Recognized password fields are excluded. Field detection is best effort and can miss provider
+errors or fast focus changes. Unknown fields are skipped.
+
+```jsonc
+"typing": {
+  "enabled": true,
+  "autocorrect": true
+}
+```
+
+Set `autocorrect` to false to collect episodes without replacing words. Set `enabled` to
+false to disable both. Correction preserves the input case and the current keyboard layout.
+
+Open **Typing episodes...** in the tray and click **Analyze saved episodes**. Compare each English
+word with its Russian-layout spelling and review the supporting episode count and signals.
+Select a candidate and click **Approve selected word** to confirm it.
+Open the **Dictionary** tab to see all words or add a word manually. The dictionary
+starts empty. Its only stored source is `ApprovedWords` in
+`%LOCALAPPDATA%\Klava\typing\analysis.json`; words do not belong in the config.
+Analysis never adds words on its own and never runs automatically. Approved words take
+effect immediately. An expiry balloon
+offers analysis before unanalyzed episodes are removed.
 
 ### Hotkeys
 

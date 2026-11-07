@@ -16,6 +16,8 @@ public sealed class LayoutSwitcher(IPlatform platform, int maxTapMs, int doubleT
 
     /// <summary>Raised after a single tap switched the layout.</summary>
     public event Action? Switched;
+    public event Action<nint, nint>? LayoutChanged;
+    public event Action<TypingCorrection>? TextConverted;
 
     /// <summary>Raised after a double tap retyped a word; the argument is the number of keys retyped.</summary>
     public event Action<int>? Converted;
@@ -42,13 +44,14 @@ public sealed class LayoutSwitcher(IPlatform platform, int maxTapMs, int doubleT
         if (_lastTap is { } last && tap.DownMs - last.UpMs <= doubleTapMs)
         {
             _lastTap = null;
-            if (!ConvertLastWord(last.To)) ConvertSelection(last.From, last.To);
+            if (!ConvertLastWord(last.From, last.To)) ConvertSelection(last.From, last.To);
             return;
         }
 
         var (from, to) = platform.SwitchToNextLayout();
         _lastTap = (e.TimeMs, from, to);
         _clearWordOnNextKey = true;
+        LayoutChanged?.Invoke(from, to);
         Switched?.Invoke();
     }
 
@@ -99,7 +102,7 @@ public sealed class LayoutSwitcher(IPlatform platform, int maxTapMs, int doubleT
         _clearWordOnNextKey = false;
     }
 
-    private bool ConvertLastWord(nint layout)
+    private bool ConvertLastWord(nint from, nint layout)
     {
         var keys = LastWordWithTrailingSpaces();
         if (keys.Count == 0) return false;
@@ -113,6 +116,7 @@ public sealed class LayoutSwitcher(IPlatform platform, int maxTapMs, int doubleT
         }
         steps.Add(new TextStroke(text));
         platform.Send(steps);
+        TextConverted?.Invoke(new(platform.TypeText(keys, from), text, "shift-shift", "shift-shift:v1"));
 
         // The user may go on typing the same word in the new layout.
         _clearWordOnNextKey = false;

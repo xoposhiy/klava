@@ -14,6 +14,7 @@ namespace Klava.App;
 /// </summary>
 internal sealed class SelectionConverter : IDisposable
 {
+    public event Action<TypingEvent>? TypingObserved;
     private const uint WM_CONVERT = WM_APP + 1;
     private const int PollMs = 10;
     private const int ModifierTimeoutMs = 100;
@@ -229,6 +230,10 @@ internal sealed class SelectionConverter : IDisposable
         }
         var own = GetClipboardSequenceNumber();
         SendChord('V');
+        var context = request.Platform.TypingContext;
+        if (context.CanRecord)
+            TypingObserved?.Invoke(new(Clock.NowMs(), context, "correction", "klava", Trigger: true,
+                Correction: new(text, result, "shift-shift-selection", "shift-shift-selection:v1")));
 
         // A restore that comes too early makes the app paste the old content.
         Wait(RestoreDelayMs);

@@ -39,6 +39,14 @@ internal static class Native
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public int x, y;
+        public uint mouseData, flags, time;
+        public nint dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct MSG
     {
         public nint hwnd;

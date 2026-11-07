@@ -144,6 +144,32 @@ public sealed class ChatterHistoryFormTests : IDisposable
     }
 
     [Fact]
+    public void Refresh_keeps_the_selected_key_column_and_scroll_position()
+    {
+        Directory.CreateDirectory(_folder);
+        var history = new Klava.Core.ChatterHistory();
+        for (var key = 33; key < 130; key++) history.RecordPress(DateTime.Now, key);
+        var path = Path.Combine(_folder, "history.json");
+        FormTestKit.SaveHistory(path, history);
+        using var store = new ChatterHistoryStore(path);
+        Assert.True(SpinWait.SpinUntil(() => store.Snapshot.Length >= 97, TimeSpan.FromSeconds(5)));
+        FormTestKit.Run(() =>
+        {
+            using var form = new ChatterHistoryForm(store);
+            FormTestKit.Preview(form, "history-refresh");
+            var table = Assert.Single(FormTestKit.Descendants(form).OfType<DataGridView>());
+            table.CurrentCell = table.Rows[30].Cells[2];
+            var selected = table.CurrentRow!.Tag;
+            table.FirstDisplayedScrollingRowIndex = 10;
+            var top = table.Rows[10].Tag;
+            form.RefreshHistory(force: true);
+            Assert.Equal(selected, table.CurrentRow!.Tag);
+            Assert.Equal(2, table.CurrentCell!.ColumnIndex);
+            Assert.Equal(top, table.Rows[table.FirstDisplayedScrollingRowIndex].Tag);
+        });
+    }
+
+    [Fact]
     public void Does_not_round_a_positive_rate_to_zero()
     {
         Assert.Equal($"<{0.01:F2}%", ChatterHistoryForm.FormatRate(1, 100_000));
